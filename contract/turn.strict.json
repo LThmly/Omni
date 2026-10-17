@@ -1,0 +1,180 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["turn"],
+  "properties": {
+    "turn": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "say", "confirm", "app"],
+          "properties": {
+            "op": { "type": "string", "enum": ["propose"] },
+            "say": { "type": "string" },
+            "confirm": { "type": "boolean" },
+            "app": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "module", "title", "state"],
+                  "properties": {
+                    "id": { "type": "string" },
+                    "module": { "type": "string", "enum": ["checklist"] },
+                    "title": { "type": "string" },
+                    "state": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["cursor", "items"],
+                      "properties": {
+                        "cursor": { "type": "integer" },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["label", "checked"],
+                            "properties": {
+                              "label": { "type": "string" },
+                              "checked": { "type": "boolean" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "module", "title", "state"],
+                  "properties": {
+                    "id": { "type": "string" },
+                    "module": { "type": "string", "enum": ["scoreboard"] },
+                    "title": { "type": "string" },
+                    "state": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["cursor", "sides"],
+                      "properties": {
+                        "cursor": { "type": "integer" },
+                        "sides": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["name", "score"],
+                            "properties": {
+                              "name": { "type": "string" },
+                              "score": { "type": "integer" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "module", "title", "state"],
+                  "properties": {
+                    "id": { "type": "string" },
+                    "module": { "type": "string", "enum": ["progress"] },
+                    "title": { "type": "string" },
+                    "state": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["label", "unit", "value", "goal", "step"],
+                      "properties": {
+                        "label": { "type": "string" },
+                        "unit": { "type": "string" },
+                        "value": { "type": "number" },
+                        "goal": { "type": "number" },
+                        "step": { "type": "number" }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "module", "title", "state"],
+                  "properties": {
+                    "id": { "type": "string" },
+                    "module": { "type": "string", "enum": ["key_value"] },
+                    "title": { "type": "string" },
+                    "state": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["cursor", "rows"],
+                      "properties": {
+                        "cursor": { "type": "integer" },
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["label", "value"],
+                            "properties": {
+                              "label": { "type": "string" },
+                              "value": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "app_id", "say", "actions"],
+          "properties": {
+            "op": { "type": "string", "enum": ["mutate"] },
+            "app_id": { "type": "string" },
+            "say": { "type": "string" },
+            "actions": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["action", "args"],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": ["toggle", "append", "remove", "inc", "dec", "add"]
+                  },
+                  "args": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["label", "amount"],
+                    "properties": {
+                      "label": { "type": ["string", "null"] },
+                      "amount": { "type": ["number", "null"] }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "say"],
+          "properties": {
+            "op": { "type": "string", "enum": ["say"] },
+            "say": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}

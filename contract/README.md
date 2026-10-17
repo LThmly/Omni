@@ -7,7 +7,8 @@ This folder is the API between firmware, the simulator, the cloud, and the model
 | Path | What it is |
 | :--- | :--- |
 | `app.schema.json` | One saved app |
-| `turn.schema.json` | `POST /v1/turn` response |
+| `turn.schema.json` | `POST /v1/turn` response the device accepts |
+| `turn.strict.json` | Same response, shaped so Gemini structured output can fill it |
 | `modules/*.json` | State, actions, and pixel layout for each module |
 | `fixtures/apps/` | Apps the shell and the simulator can paint with no network |
 | `fixtures/turns/` | Responses the cloud stub returns |
