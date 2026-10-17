@@ -120,6 +120,10 @@ In scope: the shell, the three modules, one cloud turn endpoint, the browser sim
 
 Out of scope: on-device compilation, on-device speech-to-text, an on-device model, generated code, per-app HTTP, an app store, grayscale, and partial-refresh research. Partial refresh is a gift if someone proves it on this exact glass. It is not the plan.
 
+## Repo
+
+Lanes and how to start them are in the root `README.md`. `contract/` is the JSON firmware, the simulator, and the cloud share. `firmware/bringup/` is where a measured refresh time gets written down.
+
 ## Hardware notes that affect this
 
 Pin corrections live in `hardware.md`. Two of them matter here:

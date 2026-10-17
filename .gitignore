@@ -1,0 +1,9 @@
+.DS_Store
+.env
+.env.*
+.pio/
+.vscode/
+__pycache__/
+*.pyc
+node_modules/
+sim/dist/
