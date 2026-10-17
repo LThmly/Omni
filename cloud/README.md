@@ -26,7 +26,16 @@ curl -s localhost:8787/v1/turn \
 
 ## Real model
 
-Replace the matcher. Keep the response shape. Validate against `contract/turn.schema.json` before replying. On a bad model payload, retry once, then return `fixtures/turns/say.json`.
+`cloud/try_turn.py` is the model test, not the device endpoint. It calls Vertex express at `aiplatform.googleapis.com` with `contract/turn.strict.json` as the response schema. This key is bound to the Agent Platform service account, so it cannot call `generativelanguage.googleapis.com`. The reply is one `propose`, `mutate`, or `say` object.
+
+Put `GEMINI_API_KEY` in an untracked `.env` at the repo root. See `.env.example`. The model that produced a valid shopping turn is `gemini-3.8-flash`.
+
+```bash
+python3 cloud/try_turn.py "Add milk to my shopping list."
+python3 cloud/try_turn.py "Add coffee" --registry contract/fixtures/registry.json
+```
+
+The schema root is `{"turn": ...}`. The script prints the inner object, which matches `contract/turn.schema.json`. Firmware and the simulator keep calling the stub until `ask()` is served from `POST /v1/turn`.
 
 Speech-to-text runs here. The device will send `wav_base64`. The stub ignores audio and reads `text`.
 
