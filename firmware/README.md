@@ -9,7 +9,7 @@ pio run -t upload
 pio device monitor
 ```
 
-`src/main.cpp` only prints a boot line over USB serial. First job after that print works: load `contract/fixtures/apps/shopping.json` from flash and draw it.
+`src/main.cpp` prints the boot test, then `src/wifi_link.cpp` joins the network and checks that the link can reach the internet. The `ufdevice` name and password are in `src/wifi_link.h`. A good join prints `wifi:` and an address, then `http: generate_204 -> 204`.
 
 ## Own this
 

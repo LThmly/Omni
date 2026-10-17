@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <rom/rtc.h>
+#include "wifi_link.h"
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -25,6 +26,8 @@ void setup() {
   Serial.printf("D10 (GPIO9 - MOSI) level at boot: %s\n",
                 d10_boot ? "HIGH (Safe)" : "LOW (Warning)");
   Serial.println("=====================================\n");
+
+  wifiConnect();
 }
 
 void loop() {
