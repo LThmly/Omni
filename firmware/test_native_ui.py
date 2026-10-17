@@ -5,9 +5,9 @@ os.environ.setdefault('SDL_AUDIODRIVER','dummy')
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import pygame
-from native_ui import NativeApp, calculate, default_apps, VOICE
+from native_ui import NativeApp, PartialSpeechDemo, calculate, default_apps, VOICE
 from phone import Hit, phone_point, screen_point
 
 
@@ -146,6 +146,151 @@ class NativeUITest(unittest.TestCase):
         self.assertIsNone(self.app.pending)
         self.assertEqual(len(self.app.device.registry),6)
         self.assertEqual(self.app.device.agent,'idle')
+
+    def test_live_input_updates_while_held_and_shows_submitted_request(self):
+        with patch('pygame.time.get_ticks', side_effect=[1000,1500]):
+            self.app.on_down(VOICE.center)
+            self.app.on_text('Track water')
+            self.paint()
+            self.assertEqual(self.app.screen.transcript.text,'Track water')
+            self.key(pygame.K_BACKSPACE)
+            self.assertEqual(self.app.screen.listening_text,'Track wate')
+            self.app.on_text('r')
+            self.app.on_up(VOICE.center)
+        self.assertEqual(self.app.pending['request'],'Track water')
+        self.paint()
+        self.assertEqual(self.app.screen.transcript.text,'Track water')
+
+    def test_hidden_input_persists_and_does_not_change_the_request(self):
+        self.open('settings')
+        self.activate('setting',index=4)
+        self.assertFalse(self.app.prefs['show_input'])
+        restored=NativeApp('http://unused','none',False,self.store)
+        self.assertFalse(restored.prefs['show_input'])
+        self.app.screen.transition=None
+        self.app.screen.last_view='home'
+        self.app.set_launcher(False)
+        self.app.draft='Create a packing list'
+        with patch('pygame.time.get_ticks',side_effect=[1000,1500]):
+            self.paint()
+            self.app.on_down(VOICE.center)
+            with patch.object(self.app.screen,'label',wraps=self.app.screen.label) as label:
+                self.paint()
+                texts=[call.args[1] for call in label.call_args_list]
+                self.assertNotIn('Listening',texts)
+                self.assertNotIn('Create a packing list',texts)
+            self.app.on_up(VOICE.center)
+        self.assertEqual(self.app.pending['request'],'Create a packing list')
+
+    def test_live_input_keeps_latest_lines_and_settings_back_is_accessible(self):
+        self.app.draft='A'*200+' latest words'
+        self.paint();self.paint(400)
+        frames=list(self.app.screen.transcript.frames(self.ticks))
+        visible=[word for word,x,y,alpha in frames if 0<=y<66 and alpha>0]
+        self.assertEqual(visible[-2:],['latest','words'])
+        self.assertGreater(self.app.screen.transcript.scroll(self.ticks),0)
+        self.open('settings')
+        settings=[hit for hit in self.app.screen.hits if hit.act=='setting']
+        self.assertEqual(len(settings),6)
+        self.assertTrue(all(hit.rect.bottom<800 for hit in settings))
+        self.app.screen.setting_cursor=5
+        self.app.scroll_input(1)
+        self.assertEqual(self.app.screen.setting_cursor,0)
+        self.activate('setting',index=5)
+        self.assertIsNone(self.app.device.current())
+        self.assertTrue(self.app.screen.launcher)
+
+    def test_partial_demo_reveals_words_and_corrects_a_hypothesis(self):
+        with patch('pygame.time.get_ticks',return_value=1000):self.app.on_down(VOICE.center)
+        preview=self.app.speech_preview
+        self.app.update_speech_preview(1000)
+        self.assertEqual(self.app.screen.listening_text,'')
+        self.app.update_speech_preview(1250)
+        self.assertEqual(self.app.screen.listening_text,'add')
+        wrong=next(at for at,text in preview.events if text=='add mill')
+        corrected=next(at for at,text in preview.events if text=='add milk')
+        self.app.update_speech_preview(1000+wrong)
+        self.assertEqual(self.app.screen.listening_text,'add mill')
+        self.app.update_speech_preview(1000+corrected)
+        self.assertEqual(self.app.screen.listening_text,'add milk')
+        self.app.update_speech_preview(10000)
+        self.assertEqual(self.app.screen.listening_text,'add milk to my shopping list')
+        with patch('pygame.time.get_ticks',return_value=10000):self.app.on_up(VOICE.center)
+        self.assertEqual(self.app.pending['request'],preview.final_result()['text'])
+        self.assertEqual(self.app.screen.submitted_text,preview.final_result()['text'])
+        self.app.apply_speech_result({'partial':'late stale result'})
+        self.assertNotEqual(self.app.screen.listening_text,'late stale result')
+
+    def test_vosk_shaped_segments_replace_partials_and_keep_committed_words(self):
+        self.app.on_down(VOICE.center)
+        self.app.speech_preview=None
+        self.app.apply_speech_result({'partial':'add mill'})
+        self.app.apply_speech_result({'partial':'add milk'})
+        self.assertEqual(self.app.screen.listening_text,'add milk')
+        self.app.apply_speech_result({'text':'add milk'})
+        self.app.apply_speech_result({'partial':'to my'})
+        self.app.apply_speech_result({'partial':'to my shopping list'})
+        self.assertEqual(self.app.screen.listening_text,'add milk to my shopping list')
+        self.app.apply_speech_result({'text':'to my shopping list'})
+        self.assertEqual(self.app.screen.listening_text,'add milk to my shopping list')
+        self.app.cancel_press()
+        self.app.apply_speech_result({'partial':'stale'})
+        self.assertEqual(self.app.screen.listening_text,'')
+
+    def test_partial_demo_custom_phrase_and_hidden_visual(self):
+        self.app.prefs['show_input']=False
+        self.app.prefs['motion']=False
+        self.app.draft='Track my daily water'
+        with patch('pygame.time.get_ticks',return_value=1000):self.app.on_down(VOICE.center)
+        self.app.update_speech_preview(10000)
+        self.assertEqual(self.app.screen.listening_text,'track my daily water')
+        with patch.object(self.app.screen,'label',wraps=self.app.screen.label) as label:
+            self.paint()
+            self.assertNotIn('track my daily water',[call.args[1] for call in label.call_args_list])
+        with patch('pygame.time.get_ticks',return_value=10000):self.app.on_up(VOICE.center)
+        self.assertEqual(self.app.pending['request'],'Track my daily water')
+        self.assertIsNone(self.app.speech_preview)
+
+    def test_microphone_partial_updates_and_release_uses_real_final_text(self):
+        speech=Mock()
+        speech.start.return_value=7
+        speech.poll.return_value=[]
+        self.app.speech=speech
+        with patch('pygame.time.get_ticks',side_effect=[1000,1600]):
+            self.app.on_down(VOICE.center)
+            self.assertIsNone(self.app.speech_preview)
+            speech.poll.return_value=[(7,'partial',{'partial':'track wetter'})]
+            self.app.poll()
+            self.assertEqual(self.app.screen.listening_text,'track wetter')
+            speech.poll.return_value=[(7,'partial',{'partial':'track water'})]
+            self.app.poll()
+            self.assertEqual(self.app.screen.listening_text,'track water')
+            self.app.on_up(VOICE.center)
+        speech.finish.assert_called_once_with(7)
+        self.assertIsNone(self.app.pending)
+        self.assertTrue(self.app.speech_finalizing)
+        speech.poll.return_value=[(7,'final',{'text':'track my water intake'})]
+        self.app.poll()
+        self.assertEqual(self.app.pending['request'],'track my water intake')
+        self.assertIsNone(self.app.speech_session)
+        self.assertFalse(self.app.speech_finalizing)
+
+    def test_microphone_cancel_and_silence_do_not_generate_default_app(self):
+        speech=Mock();speech.start.return_value=8;speech.poll.return_value=[]
+        self.app.speech=speech
+        self.app.on_down(VOICE.center);self.app.cancel_press()
+        speech.cancel.assert_called_once_with(8)
+        speech.poll.return_value=[(8,'final',{'text':'late result'})]
+        self.app.poll()
+        self.assertIsNone(self.app.pending)
+        speech.poll.return_value=[]
+        with patch('pygame.time.get_ticks',side_effect=[1000,1600]):
+            self.app.on_down(VOICE.center);self.app.on_up(VOICE.center)
+        speech.poll.return_value=[(8,'final',{'text':''})]
+        self.app.poll()
+        self.assertIsNone(self.app.pending)
+        self.assertEqual(len(self.app.device.registry),5)
+        self.assertIn('No speech detected',self.app.device.say)
 
     def test_pi_orientation_uses_same_touch_targets(self):
         for turn in ('right','left','none'):

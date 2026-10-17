@@ -14,13 +14,15 @@ from pathlib import Path
 import pygame
 import phone as legacy
 from logic import Device
+from transcript import TranscriptAnimator
 
 BUILTINS = (
     ('omni', 'omni', 'home'), ('settings', 'settings', 'settings'),
     ('notes', 'notes', 'notes'), ('clock', 'clock', 'clock'),
     ('calculator', 'calculator', 'calculator'),
 )
-DEFAULTS = dict(theme='dark', motion=True, text_scale=1, wait_seconds=10, clock24=True)
+DEFAULTS = dict(theme='dark', motion=True, text_scale=1, wait_seconds=10, clock24=True, show_input=True)
+SETTINGS_COUNT = 6
 CX, CY, RADIUS, STEP, FOCUS = -8, 686, 328, math.radians(22), math.radians(-42)
 VOICE = pygame.Rect(192, 626, 96, 76)
 
@@ -79,6 +81,36 @@ def demo_app(request, registry):
     return app
 
 
+class PartialSpeechDemo:
+    """Timed Vosk-shaped hypotheses for the microphone-free speech demo."""
+    def __init__(self, text):
+        self.text = text
+        words = text.lower().split()
+        words = [word.strip('.,!?;:') for word in words]
+        words = [word for word in words if word]
+        self.events = [(0, '')]
+        at = 250
+        for index, word in enumerate(words):
+            prefix = words[:index]
+            if word == 'milk':
+                # A provisional hypothesis is replaced as more audio arrives.
+                self.events.append((at, ' '.join(prefix + ['mill'])))
+                at += 320
+            self.events.append((at, ' '.join(prefix + [word])))
+            at += 300 + min(len(word), 8)*25
+
+    def partial_result(self, elapsed):
+        hypothesis = ''
+        for at, text in self.events:
+            if at > elapsed:
+                break
+            hypothesis = text
+        return {'partial': hypothesis}
+
+    def final_result(self):
+        return {'text': self.text}
+
+
 class NativeScreen(legacy.Screen):
     def __init__(self, prefs):
         super().__init__()
@@ -92,6 +124,9 @@ class NativeScreen(legacy.Screen):
         self.keyboard_shift = False
         self.setting_cursor = 0
         self.calculator = ''
+        self.listening_text = ''
+        self.submitted_text = ''
+        self.transcript = TranscriptAnimator()
         self.wave = []
         self.arrows = []
         self.time = 0
@@ -287,8 +322,8 @@ class NativeScreen(legacy.Screen):
             self.label(surf,'omni',(240,490),64,True)
             self.add((0,58,480,560),'launcher')
             self.voice(surf,device.agent=='listening')
-            if draft:self.label(surf,draft,(240,566),17,width=420)
-            elif device.say:self.label(surf,device.say,(240,566),17,width=420)
+            if device.say and device.agent != 'listening':self.label(surf,device.say,(240,566),17,width=420)
+            else:self.input_visual(surf,device,draft)
             self.add((390,730,66,48),'request')
             pygame.draw.rect(surf,self.ink,(402,742,42,25),1,border_radius=3)
             for row in range(2):
@@ -302,6 +337,34 @@ class NativeScreen(legacy.Screen):
             self.app_view(surf,device,app,body);surf.set_clip(None)
         if self.keyboard:self.draw_keyboard(surf,device)
 
+    def input_visual(self, surf, device, draft):
+        if not self.prefs['show_input']:
+            self.transcript.clear()
+            return
+        if device.agent == 'listening':text=self.listening_text
+        elif device.agent == 'thinking':text=self.submitted_text
+        else:text=draft
+        font=self.font(round(22*self.prefs['text_scale']))
+        line_height=round(28*self.prefs['text_scale'])
+        self.transcript.update(text,self.time,lambda value:font.size(value)[0],
+                               line_height=line_height,animate=self.prefs['motion'],align='center')
+        if not text:return
+        # Each line remains centered; position changes ease as the text grows.
+        # Recognition/submission always use the original, unanimated text.
+        layer=pygame.Surface((408,66),pygame.SRCALPHA)
+        for word,x,y,opacity in self.transcript.frames(self.time):
+            if opacity<=0 or y < -line_height or y>=66:continue
+            glyph=font.render(word,True,self.ink)
+            glyph.set_alpha(round(255*opacity))
+            layer.blit(glyph,(round(x),round(y)+4))
+        if self.transcript.scroll(self.time)>1:
+            mask=pygame.Surface(layer.get_size(),pygame.SRCALPHA)
+            mask.fill((255,255,255,255))
+            for row in range(8):
+                pygame.draw.line(mask,(255,255,255,round(row/7*255)),(0,row),(408,row))
+            layer.blit(mask,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+        surf.blit(layer,(36,556))
+
     def utility(self,surf,device,app):
         self.label(surf,app['title'],(40,100),32,True,'left',330)
         self.button(surf,(388,70,56,56),'‹','back')
@@ -311,12 +374,13 @@ class NativeScreen(legacy.Screen):
             rows=[('Appearance','Dark' if prefs['theme']=='dark' else 'Light'),
                   ('Motion','On' if prefs['motion'] else 'Reduced'),
                   ('Text size','Standard' if prefs['text_scale']==1 else 'Large'),
-                  ('Preview wait',f"{prefs['wait_seconds']} seconds"),('Back to apps','‹')]
+                  ('Preview wait',f"{prefs['wait_seconds']} seconds"),
+                  ('Live input','Shown' if prefs['show_input'] else 'Hidden'),('Back to apps','‹')]
             for index,(label,value) in enumerate(rows):
-                rect=pygame.Rect(24,180+index*104,432,84)
+                rect=pygame.Rect(24,180+index*88,432,72)
                 pygame.draw.rect(surf,self.ink,rect,2 if index==self.setting_cursor else 1,border_radius=12)
-                self.label(surf,label,(42,rect.y+27),18,align='left',width=380)
-                self.label(surf,value,(438,rect.y+58),20,align='right',width=380)
+                self.label(surf,label,(42,rect.y+23),18,align='left',width=380)
+                self.label(surf,value,(438,rect.y+50),20,align='right',width=380)
                 self.add(rect,'setting',index=index)
         elif module=='notes':
             text=app['state'].get('text','')
@@ -363,14 +427,14 @@ class NativeScreen(legacy.Screen):
 
 
 class NativeApp(legacy.App):
-    def __init__(self, stub, turn, kiosk, store=None, live=False):
+    def __init__(self, stub, turn, kiosk, store=None, live=False, speech=None):
         # Separate from the retired demo registry; existing device data is intact.
         store=Path(store) if store else Path.home()/'.omni'/'pi-ui'/'registry.json'
         self.store=store;self.preferences_path=store.with_name('preferences.json')
         self.prefs=DEFAULTS.copy()
         try:
             saved=json.loads(self.preferences_path.read_text())
-            for key,choices in dict(theme=('dark','light'),motion=(True,False),text_scale=(1,1.15),wait_seconds=(3,10,20),clock24=(True,False)).items():
+            for key,choices in dict(theme=('dark','light'),motion=(True,False),text_scale=(1,1.15),wait_seconds=(3,10,20),clock24=(True,False),show_input=(True,False)).items():
                 if saved.get(key) in choices:self.prefs[key]=saved[key]
         except (OSError,ValueError,TypeError):pass
         self.device=Device();self.device.load_modules()
@@ -389,6 +453,8 @@ class NativeApp(legacy.App):
         self.draft='';self.events=legacy.queue.Queue();self.press=None;self.stopping=False
         self.phone=pygame.Surface((480,800))
         self.pending=None;self.request_number=0
+        self.speech_preview=None;self.speech_segments=[]
+        self.speech=speech;self.speech_session=None;self.speech_finalizing=False
 
     def save_preferences(self):
         self.preferences_path.parent.mkdir(parents=True,exist_ok=True)
@@ -402,6 +468,7 @@ class NativeApp(legacy.App):
     def send(self,text):
         text=(text or '').strip()
         if not text or self.pending:return
+        self.screen.submitted_text=text
         self.draft='';self.screen.keyboard=None;self.screen.wave.clear();self.screen.arrows.clear()
         self.set_launcher(False)
         self.device.agent='thinking';self.device.say='';self.device.respond_until=None
@@ -426,6 +493,7 @@ class NativeApp(legacy.App):
         self.device.agent='idle';self.device.say='';self.set_launcher(True)
 
     def poll(self):
+        self.poll_speech()
         if not self.pending:return
         while not self.events.empty():
             number,result=self.events.get_nowait()
@@ -460,6 +528,7 @@ class NativeApp(legacy.App):
         elif index==2:self.prefs['text_scale']=1.15 if self.prefs['text_scale']==1 else 1
         elif index==3:
             values=[3,10,20];self.prefs['wait_seconds']=values[(values.index(self.prefs['wait_seconds'])+1)%3]
+        elif index==4:self.prefs['show_input']=not self.prefs['show_input']
         else:self.set_launcher(True)
         self.save_preferences()
 
@@ -509,13 +578,22 @@ class NativeApp(legacy.App):
         super().activate(hit)
 
     def on_down(self,pos):
-        if pos is None or self.pending or self.screen.transition:return
+        if pos is None or self.pending or self.speech_session is not None or self.screen.transition:return
         hit=self.screen.at(pos)
         now=pygame.time.get_ticks();self.screen.time=now
         self.press=dict(x=pos[0],y=pos[1],hit=hit,time=now,talk=bool(hit and hit.act=='talk'),moved=False,
                         scroll=self.screen.scroll)
         if self.press['talk']:
+            self.device.say=''
+            self.screen.listening_text=''
+            self.screen.transcript.clear()
+            self.speech_segments=[]
             self.device.agent='listening';self.screen.wave.clear()
+            if self.speech:
+                try:self.speech_session=self.speech.start()
+                except Exception as error:
+                    self.device.agent='idle';self.device.say=str(error);self.press=None
+            else:self.speech_preview=PartialSpeechDemo(self.draft or legacy.TALK_LINE)
         elif self.screen.launcher and not self.device.current() and pos[1]>295:
             self.screen.wheel_start=None;self.screen.target=self.screen.position
             self.press.update(wheel=True,angle=math.atan2(pos[1]-CY,pos[0]-CX))
@@ -536,15 +614,35 @@ class NativeApp(legacy.App):
     def cancel_press(self):
         if self.press and self.press.get('wheel'):self.screen.wheel_to(round(self.screen.position))
         self.press=None
+        if self.speech_session is not None:
+            self.speech.cancel(self.speech_session)
+            self.speech_session=None;self.speech_finalizing=False
+            if not self.pending:self.device.agent='idle'
         if self.device.agent=='listening':self.device.agent='idle'
+        self.speech_preview=None;self.speech_segments=[];self.screen.listening_text=''
         self.screen.wave.clear()
 
     def on_up(self,pos):
         press=self.press;self.press=None
         if not press:return
         if press['talk']:
+            should_send=pos is not None and pygame.time.get_ticks()-press['time']>=350
+            if self.speech and self.speech_session is not None:
+                if should_send:
+                    self.speech_finalizing=True
+                    self.screen.submitted_text=self.screen.listening_text
+                    self.screen.arrows.clear()
+                    self.device.agent='thinking';self.screen.wave.clear()
+                    self.speech.finish(self.speech_session)
+                else:self.cancel_press()
+                return
+            if should_send and self.speech_preview:
+                self.apply_speech_result(self.speech_preview.final_result())
+            transcript=self.screen.listening_text
             self.device.agent='idle';self.screen.wave.clear()
-            if pos is not None and pygame.time.get_ticks()-press['time']>=350:self.send(self.draft or legacy.TALK_LINE)
+            self.speech_preview=None;self.speech_segments=[]
+            if should_send:self.send(transcript)
+            else:self.screen.listening_text=''
             return
         if press.get('wheel') and press['moved']:
             self.screen.wheel_to(round(self.screen.position));return
@@ -553,9 +651,9 @@ class NativeApp(legacy.App):
             if hit and press['hit'] and hit.act==press['hit'].act:self.activate(hit)
 
     def scroll_input(self,direction):
-        if self.pending or self.screen.transition or self.screen.keyboard:return
+        if self.pending or self.speech_session is not None or self.screen.transition or self.screen.keyboard:return
         app=self.device.current()
-        if app and app['module']=='settings':self.screen.setting_cursor=(self.screen.setting_cursor+direction)%5
+        if app and app['module']=='settings':self.screen.setting_cursor=(self.screen.setting_cursor+direction)%SETTINGS_COUNT
         elif app:self.screen.scroll=max(0,self.screen.scroll+direction*48)
         else:self.screen.step_selection(self.device,direction)
 
@@ -563,13 +661,14 @@ class NativeApp(legacy.App):
         mods=event.mod;ctrl=bool(mods & (pygame.KMOD_CTRL|pygame.KMOD_META))
         if ctrl and event.key==pygame.K_q and mods & pygame.KMOD_SHIFT:return 'quit'
         if event.key==pygame.K_ESCAPE:
-            if self.screen.keyboard:self.screen.keyboard=None
+            if self.speech_session is not None:self.cancel_press()
+            elif self.screen.keyboard:self.screen.keyboard=None
             elif self.pending:
                 self.request_number+=1;self.pending=None;self.device.agent='idle';self.device.say=''
             elif self.device.current():self.set_launcher(True)
             elif self.screen.launcher:self.set_launcher(False)
             return
-        if self.pending or self.screen.transition:return
+        if self.pending or self.speech_session is not None or self.screen.transition:return
         if ctrl and event.key==pygame.K_d:
             self.device.registry=default_apps();self.device.save(self.store);self.screen.position=self.screen.target=0;self.set_launcher(True);return
         if ctrl:return
@@ -596,10 +695,14 @@ class NativeApp(legacy.App):
             elif not app:
                 index=round(self.screen.target)%len(self.device.registry)
                 self.activate(legacy.Hit((0,0,1,1),'open',app_id=self.device.registry[index]['id']))
-        elif event.key==pygame.K_BACKSPACE:self.draft=self.draft[:-1]
+        elif event.key==pygame.K_BACKSPACE:
+            self.draft=self.draft[:-1]
+            if self.device.agent=='listening':
+                self.speech_preview=None
+                self.screen.listening_text=self.draft
 
     def on_text(self,text):
-        if self.pending or self.screen.transition or not text:return
+        if self.pending or self.speech_session is not None or self.screen.transition or not text:return
         if self.screen.keyboard:self.keyboard_key(text);return
         app=self.device.current()
         if app and app['module']=='notes':
@@ -607,8 +710,66 @@ class NativeApp(legacy.App):
         elif app and app['module']=='calculator':
             for key in text:
                 if key in '0123456789.+-*/=':self.calculator_key(key)
-        elif app is None:self.draft+=text
+        elif app is None:
+            self.draft+=text
+            if self.device.agent=='listening':
+                self.speech_preview=None
+                self.screen.listening_text=self.draft
+
+    def poll_speech(self):
+        if not self.speech:return
+        for number,kind,payload in self.speech.poll():
+            if number != self.speech_session:continue
+            if kind in ('partial','segment'):
+                self.apply_speech_result(payload)
+            elif kind=='ready':
+                print(f"Microphone ready: {payload['device']} ({payload['samplerate']} Hz)", flush=True)
+            elif kind=='final' and self.speech_finalizing:
+                text=payload.get('text','').strip()
+                self.speech_session=None;self.speech_finalizing=False
+                self.speech_segments=[];self.screen.listening_text=text
+                self.device.agent='idle'
+                if text:
+                    print(f'Recognized: {text}',flush=True)
+                    self.send(text)
+                else:
+                    self.screen.submitted_text=''
+                    self.device.say='No speech detected. Hold the waveform and try again.'
+            elif kind=='error':
+                print(f'Microphone error: {payload}',flush=True)
+                self.cancel_press()
+                self.device.agent='idle';self.device.say='Microphone error. Check your input device.'
+                self.screen.submitted_text=''
+
+    def close(self):
+        self.cancel_press()
+        if self.speech:self.speech.close()
+
+    def apply_speech_result(self, result):
+        """Replace partial hypotheses; retain finalized segments across pauses.
+
+        A real Vosk worker can deliver PartialResult/Result JSON through this
+        same method on the UI thread. Late results after release are ignored.
+        """
+        if self.device.agent != 'listening':
+            return
+        if 'text' in result:
+            text=str(result['text']).strip()
+            if text:self.speech_segments.append(text)
+            partial=''
+        elif 'partial' in result:
+            partial=str(result['partial']).strip()
+        else:
+            return
+        self.screen.listening_text=' '.join(self.speech_segments+([partial] if partial else []))
+
+    def update_speech_preview(self, ticks):
+        if self.press and self.press['talk'] and self.speech_preview:
+            result=self.speech_preview.partial_result(ticks-self.press['time'])
+            self.apply_speech_result(result)
 
     def frame(self,display):
-        self.screen.time=pygame.time.get_ticks()
+        ticks=pygame.time.get_ticks()
+        self.screen.time=ticks
+        self.update_speech_preview(ticks)
         super().frame(display)

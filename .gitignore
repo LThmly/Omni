@@ -7,3 +7,6 @@ __pycache__/
 *.pyc
 .venv/
 node_modules/
+
+# Downloaded offline speech models
+sim/models/
