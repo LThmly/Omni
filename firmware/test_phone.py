@@ -11,7 +11,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 from logic import Device, apply_action, blurb
-from phone import PW, PH, Screen, phone_point, screen_point
+from phone import PW, PH, App, Hit, Screen, phone_point, screen_point
 
 import pygame
 
@@ -124,9 +124,10 @@ class PaintTest(unittest.TestCase):
         device.load_modules()
         device.load_demos()
         screen, home = self.paint(device, "home.png")
-        self.assertEqual(home.get_at((10, 10))[:3], (22, 24, 31))
+        self.assertEqual(home.get_at((10, 10))[:3], (0, 0, 0))
         opens = [hit for hit in screen.hits if hit.act == "open"]
-        self.assertEqual(len(opens), 4)
+        self.assertEqual(len(opens), 0)
+        self.assertTrue(any(hit.act == "launcher" for hit in screen.hits))
         device.local("open", app_id="shopping")
         screen, _surf = self.paint(device, "shopping.png")
         toggles = [hit for hit in screen.hits if hit.act == "toggle"]
@@ -170,6 +171,71 @@ class PaintTest(unittest.TestCase):
 
         mark = omni_mark(64)
         self.assertEqual(mark.get_at((32, 32))[3], 0)
+
+
+class LauncherTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        pygame.init()
+
+    def test_navigation_and_swipe(self):
+        with tempfile.TemporaryDirectory() as folder:
+            app = App("http://unused", "none", False, Path(folder) / "registry.json")
+            app.device.go_home()
+            def paint():
+                app.screen.paint(app.phone, app.device, 1000, "")
+            paint()
+            app.on_down((240, 320))
+            app.on_up((240, 320))
+            self.assertTrue(app.screen.launcher)
+            paint()
+            selected = next(hit for hit in app.screen.hits if hit.act == "open")
+            self.assertEqual(selected.app_id, "shopping")
+            app.on_down((400, 500))
+            app.on_move((400, 400))
+            app.on_up((400, 400))
+            self.assertEqual(app.screen.selection, 1)
+            self.assertIsNone(app.device.current())
+            app.on_key(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN, mod=0))
+            self.assertEqual(app.device.app_id, "pingpong")
+            app.on_key(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE, mod=0))
+            self.assertIsNone(app.device.current())
+            self.assertTrue(app.screen.launcher)
+            app.on_key(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE, mod=0))
+            self.assertFalse(app.screen.launcher)
+
+    def test_restart_restores_apps_but_opens_logo(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = Path(folder) / "registry.json"
+            device = Device()
+            device.load_demos()
+            device.open_app("shopping")
+            device.save(store)
+            app = App("http://unused", "none", False, store)
+            self.assertEqual(len(app.device.registry), 4)
+            self.assertIsNone(app.device.current())
+            self.assertFalse(app.screen.launcher)
+
+    def test_registry_sizes_and_wrapping(self):
+        device = Device()
+        device.load_demos()
+        original = device.registry[:]
+        for count in range(5):
+            device.registry = original[:count]
+            screen = Screen()
+            screen.step_selection(device, -1)
+            surface = pygame.Surface((PW, PH))
+            screen.paint(surface, device, 0, "")
+            nodes = [hit for hit in screen.hits if hit.act in ("open", "select")]
+            self.assertEqual(len(nodes), count)
+            self.assertEqual(len({hit.app_id for hit in nodes}), count)
+            if count:
+                self.assertEqual(screen.selection, count - 1)
+                self.assertEqual(sum(hit.act == "open" for hit in nodes), 1)
+            else:
+                self.assertEqual(sum(hit.act == "line" for hit in screen.hits), 3)
+            if count == 4:
+                pygame.image.save(surface, "/tmp/omni-arc-ui.png")
 
 
 if __name__ == "__main__":
