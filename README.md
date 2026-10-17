@@ -21,7 +21,7 @@ Claim a lane with a branch named after it: `firmware`, `sim`, `cloud`, `bringup`
 ```
 touch PTT hold  → local Vosk transcript (or recorded wav)
                 → POST /v1/turn  { text or wav, registry }
-                → { op: propose | mutate | say }
+                → { op: propose | mutate | say | navigate }
                 → shell saves JSON and paints the phone
 ```
 
@@ -45,3 +45,5 @@ The phone is a pygame window, 480×800. The simulator and Pi share the same pyga
 `checklist`, `scoreboard`, and `progress` cover the three scripts. `key_value` is spare. Specs are in [`contract/modules/`](contract/modules/).
 
 Deploy committed source to the Pi with `python3 firmware/deploy.py omni@100.124.54.78 --backend gemini`; see [the shared workflow](firmware/README.md#edit-test-deploy). The deployment records its commit and file hashes; the Pi does not need a Git checkout.
+
+Generated apps now follow the [v2 component contract](contract/README.md): Gemini classifies each request as a message, app creation, app update, or navigation. Apps bind fixed text/number/progress/toggle/list/input/button components to typed state and approved actions. Responses are validated before application, and intent metadata is persisted. Voice commands can open Settings, the main agent page, the app wheel, or an existing generated app.

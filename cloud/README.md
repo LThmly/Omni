@@ -26,7 +26,7 @@ curl -s localhost:8787/v1/turn \
 
 ## Real model
 
-`cloud/try_turn.py` calls Vertex express at `aiplatform.googleapis.com` with `contract/turn.strict.json` as the response schema. This key is bound to the Agent Platform service account, so it cannot call `generativelanguage.googleapis.com`. The reply is one `propose`, `mutate`, or `say` object.
+`cloud/try_turn.py` calls Vertex express at `aiplatform.googleapis.com` with `contract/turn.gemini.json` as the generation schema (with the full `turn.strict.json` validated locally). This key is bound to the Agent Platform service account, so it cannot call `generativelanguage.googleapis.com`. The reply is one `propose`, `mutate`, `say`, or `navigate` object.
 
 Put `GEMINI_API_KEY` in an untracked `.env` at the repo root. See `.env.example`. The model that produced a valid shopping turn is `gemini-3.8-flash`.
 
@@ -38,3 +38,9 @@ python3 cloud/try_turn.py "Add coffee" --registry contract/fixtures/registry.jso
 The schema root is `{"turn": ...}`. The script prints the inner object, which matches `contract/turn.schema.json`. Import `ask()` for the same call. A reply that cannot be used raises `TurnError` instead of exiting the process. The pygame shell calls this client directly with `--backend gemini` and applies the returned turn to its UI. `--backend stub` keeps the HTTP path available.
 
 Vosk speech recognition runs locally on the device. In Vosk mode Gemini receives finalized text; recorded `wav_base64` requests remain supported for the non-Vosk recording path. Without a key, the stub matches text keywords and can optionally transcribe audio if its speech-recognition dependency is available.
+
+## Current strict contract (v2)
+
+See [contract/README.md](../contract/README.md) for the authoritative response contract. Gemini returns only `{"turn": {...}}`, with a version, intent (`message`, `create_app`, `update_app`, `navigate`), operation, and clear user-facing `say`. Apps are compositions of fixed components bound to typed state and approved actions. Navigation opens named device pages or existing app IDs. The client rejects incomplete, malformed, or semantically invalid responses; errors do not silently become preview apps.
+
+Install validation with `python3 -m pip install -r cloud/requirements.txt`. The model-facing structural schema is `turn.gemini.json`; the full bounded schema and interaction graph are enforced locally. The controller validates again, applies the result, and persists its classified turn. The Pi deployer installs these validation requirements before its tests.

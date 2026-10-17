@@ -1,0 +1,16 @@
+{
+  "turn": {
+    "schema_version": 2,
+    "intent": "update_app",
+    "op": "mutate",
+    "say": "Increased the counter by three.",
+    "app_id": "simple_counter",
+    "actions": [
+      {
+        "action": "increment",
+        "target": "count",
+        "amount": 3
+      }
+    ]
+  }
+}

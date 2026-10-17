@@ -19,9 +19,9 @@ On the Pi, `python3-pygame` from apt also works. The simulator uses `firmware/na
 
 - Tap the logo to open the wheel; drag around its curve, scroll, or use Up/Down to select. Tap the selected app or press Enter to open it. Tap a neighboring icon to rotate it into focus.
 - Tap the corner Omni mark to go home. Back/Escape returns from an app to the wheel, then home. Ctrl+Shift+Q quits.
-- Defaults: Omni, Settings, Notes, Clock, Calculator. Settings persists theme, reduced motion, text size, simulated wait, clock format, and Live input visibility.
-- Hold the waveform, speak into the microphone, and release to submit. Vosk updates the prompt as words are recognized, revises partial hypotheses, and flushes the final transcript on release. The bars fluctuate while held; afterward the arrows animate during generation and the new app appears selected. Gestures under 350 ms, cancelled gestures, microphone errors, and silence never submit a fake/default request. Escape or a focus change cancels capture.
-- Live input appears under the main wordmark and the submitted request stays visible during the wait. New words fade in over about 160 ms, each line stays centered with eased position changes, and recognition corrections blend only the changed words. Long input scrolls smoothly to its latest two lines. Reduced motion makes updates immediate. **Settings → Live input** hides the visual without changing recognition or what is sent.
+- Defaults: Omni, Settings, Notes, Clock, Calculator. Settings persists theme, reduced motion, text size, simulated wait, clock format.
+- Hold the waveform, speak into the microphone, and release to submit. Vosk displays live partial hypotheses and flushes the final transcript on release. The bars fluctuate while held; afterward the arrows animate during generation and the new app appears selected. Gestures under 350 ms, cancelled gestures, microphone errors, and silence never submit a fake/default request. Escape or a focus change cancels capture.
+- Live speech appears beneath the wordmark as Vosk updates its partial hypotheses; the submitted text remains while waiting. Responses replace it with a centered, progressive word reveal. Both use soft fades, smooth corrections and scrolling to the latest two lines. When the response arrives, all logo arrows ease back to their default lengths over 280 ms; reduced motion resets them immediately.
 - You can still type a request and press Enter, or enter one with the on-screen keyboard. While microphone capture is active, transcription owns the prompt and keyboard edits are ignored.
 - Notes supports physical typing and an on-screen keyboard. Clock updates from the computer's local clock. Calculator accepts touch/keyboard arithmetic.
 - Ctrl+D restores the five defaults, clearing generated apps and notes in the active profile.
@@ -66,4 +66,16 @@ References: [Vosk microphone example](https://github.com/alphacep/vosk-api/blob/
 
 ## Shared backends and deployment
 
-`sh sim/run.sh --backend gemini` calls the same Gemini client as the Pi using a local untracked `.env`. `--backend demo` keeps template generation local; `--backend stub` (or `--live`) uses the HTTP server. All replies go through the shared app controller, so generated apps, mutations, and messages appear on-screen. Final speech text remains visible after release. The Pi deployment workflow and commit verification are documented in [firmware/README.md](../firmware/README.md#edit-test-deploy).
+`sh sim/run.sh --backend gemini` calls the same Gemini client as the Pi using a local untracked `.env`. `--backend demo` keeps template generation local; `--backend stub` (or `--live`) uses the HTTP server. All replies go through the shared app controller, so generated apps, mutations, and messages appear on-screen. Live local transcription and responses share the same centered text animation. Navigation, app creation, and app edits wait until the response finishes drawing, followed by a 1.2-second reading pause; Escape cancels a queued action. The Pi deployment workflow and commit verification are documented in [firmware/README.md](../firmware/README.md#edit-test-deploy).
+
+## Component apps and navigation
+
+The shared [v2 response contract](../contract/README.md) classifies messages, app creation, app edits, and navigation. Try `Take me to settings` or `Take me to the main agent view`. Real requests use Gemini; the offline demo supports these explicit navigation commands too. Generated apps use only fixed components and shared typed state. Tap an input to edit it; buttons execute declared actions locally without a model call. Old generated templates are migrated with a profile backup. Install the updated `sim/requirements.txt` to include JSON Schema validation.
+
+App screens slide in from the selector and slide back when dismissed. Voice navigation starts the selector at the app farthest from the target, rotates to the requested app, then opens it. Reduced motion skips these animations; Escape cancels an in-progress voice navigation at the selector.
+
+Complete navigation commands such as “Navigate to the settings page”, “Please open my notes app”, “Take me to the main agent view”, and “Go back to the app selection screen” run locally after Vosk finalizes speech, without an API call. Exact existing generated app names work too. Ambiguous names, unknown pages, questions, and combined commands fall through to Gemini.
+
+Voice theme commands also run locally: “Switch to light mode”, “Enable dark mode”, “Set the theme to light mode”, or “Toggle the theme”. Omni displays its animated acknowledgment before applying and saving the theme. Escape cancels the pending change.
+
+The expanded [local voice command catalog](VOICE_COMMANDS.md) covers navigation aliases, themes, motion, text size, clock format, time/date answers, notes, spoken arithmetic, and actions/list additions in existing generated apps. These bypass the backend and use the same response-before-action flow.

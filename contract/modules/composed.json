@@ -1,0 +1,8 @@
+{
+  "module": "composed",
+  "summary": "A validated app composed from predefined components and shared typed state.",
+  "schema_version": 2,
+  "components": ["text", "number", "progress", "toggle", "list", "input", "button"],
+  "actions": ["set", "increment", "toggle", "append", "clear", "remove_checked"],
+  "layout": {"width": 480, "height": 800, "margin": 18, "header_h": 48, "row_h": 56, "bar_h": 16}
+}

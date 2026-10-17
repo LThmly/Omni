@@ -1,3 +1,4 @@
 pygame-ce==2.5.8
 vosk==0.3.45
 sounddevice==0.5.6
+-r ../cloud/requirements.txt

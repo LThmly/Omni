@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import copy
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULES = ("checklist", "scoreboard", "progress", "key_value")
+if str(ROOT) not in sys.path:sys.path.insert(0,str(ROOT))
+MODULES = ("checklist", "scoreboard", "progress", "key_value", "composed")
 DEMOS = ("shopping", "scoreboard", "hydration", "notes")
 
 
@@ -28,6 +30,11 @@ def num(value, fallback=0):
 def blurb(app):
     data = app.get("state") or {}
     module = app.get("module")
+    if module == "composed":
+        for field in data.get("fields",[]):
+            if field["type"]=="items":return "%s items" % len(field["value"])
+            if field["type"]=="number":return str(field["value"])
+        return "App"
     if module == "checklist":
         left = sum(1 for item in data.get("items") or [] if not item.get("checked"))
         return "1 left" if left == 1 else "%s left" % left
@@ -117,6 +124,7 @@ class Device:
         self.proposal = None
         self.modules = {}
         self.respond_until = None
+        self.last_turn = None
 
     def load_modules(self, root=ROOT):
         folder = Path(root) / "contract" / "modules"
@@ -158,6 +166,7 @@ class Device:
             "registry": self.registry,
             "screen": self.screen,
             "appId": self.app_id,
+            "last_turn": self.last_turn,
         }
 
     def save(self, path):
@@ -179,6 +188,7 @@ class Device:
         if not isinstance(registry, list):
             return False
         self.registry = registry
+        self.last_turn = saved.get("last_turn")
         self.screen = saved.get("screen") or "home"
         self.app_id = saved.get("appId")
         if self.screen == "app" and self.find(self.app_id) is None:
@@ -205,8 +215,13 @@ class Device:
         elif turn.get("op") == "mutate":
             app = self.find(turn.get("app_id"))
             if app is not None:
-                for action in turn.get("actions") or []:
-                    apply_action(app, action)
+                if app.get("module")=="composed":
+                    from contract.runtime import apply_operations
+                    updated=apply_operations(app,turn["actions"])
+                    app["state"]=updated["state"]
+                else:
+                    for action in turn.get("actions") or []:
+                        apply_action(app, action)
                 self.screen = "app"
                 self.app_id = app.get("id")
             self.proposal = None

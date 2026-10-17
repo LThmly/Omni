@@ -1,12 +1,10 @@
 """Shared desktop/Pi UI. The simulator and kiosk use the same input and paint path."""
 from __future__ import annotations
 
-import ast
 import copy
 import datetime
 import json
 import math
-import operator
 import random
 import sys
 import time
@@ -15,17 +13,22 @@ from pathlib import Path
 import pygame
 import phone as legacy
 from logic import Device
+from local_commands import calculate, theme_command, match_command
 from transcript import TranscriptAnimator
+from contract.runtime import ContractError, validate_app, validate_turn, apply_operations, fields, message, preview_navigation
+from contract.legacy import to_composed
 
 BUILTINS = (
     ('omni', 'omni', 'home'), ('settings', 'settings', 'settings'),
     ('notes', 'notes', 'notes'), ('clock', 'clock', 'clock'),
     ('calculator', 'calculator', 'calculator'),
 )
-DEFAULTS = dict(theme='dark', motion=True, text_scale=1, wait_seconds=10, clock24=True, show_input=True)
-SETTINGS_COUNT = 6
+DEFAULTS = dict(theme='dark', motion=True, text_scale=1, wait_seconds=10, clock24=True)
+SETTINGS_COUNT = 5
 CX, CY, RADIUS, STEP, FOCUS = -8, 686, 328, math.radians(22), math.radians(-42)
 VOICE = pygame.Rect(192, 626, 96, 76)
+TOUCH_SLOP = 14
+TOUCH_PADDING = 12
 
 
 def default_apps():
@@ -33,32 +36,14 @@ def default_apps():
             for id, title, module in BUILTINS]
 
 
-def calculate(expression):
-    """Arithmetic only; reject names, calls, powers and unbounded expressions."""
-    if len(expression) > 80:
-        raise ValueError('Expression too long')
-    tree = ast.parse(expression, mode='eval')
-    if sum(1 for _ in ast.walk(tree)) > 64:
-        raise ValueError('Expression too long')
-    binary = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv}
-    def visit(node):
-        if isinstance(node, ast.Expression): return visit(node.body)
-        if isinstance(node, ast.Constant) and type(node.value) in (int, float): return node.value
-        if isinstance(node, ast.UnaryOp) and type(node.op) in (ast.UAdd, ast.USub):
-            return visit(node.operand) * (-1 if isinstance(node.op, ast.USub) else 1)
-        if isinstance(node, ast.BinOp) and type(node.op) in binary:
-            return binary[type(node.op)](visit(node.left), visit(node.right))
-        raise ValueError('Unsupported expression')
-    value = float(visit(tree))
-    if not math.isfinite(value): raise ValueError('Invalid result')
-    return format(value, '.12g')
-
 
 def demo_app(request, registry):
     """Local stand-in for a model response, shared by simulator and kiosk."""
     text = request.strip()
     lower = text.lower()
-    if any(word in lower for word in ('milk', 'shop', 'grocer')):
+    if 'counter' in lower:
+        app=json.loads((legacy.ROOT/'contract/fixtures/v2/counter.json').read_text())
+    elif any(word in lower for word in ('milk', 'shop', 'grocer')):
         app = dict(id='shopping', title='shopping', module='checklist',
                    state={'cursor': 0, 'items': [{'label': 'Milk', 'checked': False}]})
     elif any(word in lower for word in ('water', 'hydrat', 'ounce')):
@@ -79,7 +64,7 @@ def demo_app(request, registry):
     base = app['id']; suffix = 2
     while any(existing['id'] == app['id'] for existing in registry):
         app['id'] = f'{base}_{suffix}'; suffix += 1
-    return app
+    return to_composed(app)
 
 
 class PartialSpeechDemo:
@@ -121,17 +106,31 @@ class NativeScreen(legacy.Screen):
         self.last_view = None
         self.transition = None
         self.transition_value = 0.0
+        self.page_transition = None
+        self.navigation = None
+        self.wheel_duration = 280
         self.keyboard = None
         self.keyboard_shift = False
         self.setting_cursor = 0
         self.calculator = ''
+        self.app_notice = ''
         self.listening_text = ''
         self.submitted_text = ''
         self.transcript = TranscriptAnimator()
+        self.text_mode = None
+        self.response_source = None
+        self.response_started = 0
         self.wave = []
         self.arrows = []
+        self.arrow_values = [0.]*5
+        self.arrow_waiting = False
+        self.arrow_settle = None
         self.time = 0
         self.theme = None
+
+    @property
+    def busy(self):
+        return bool(self.transition or self.page_transition or self.navigation)
 
     def palette(self):
         theme = self.prefs['theme']
@@ -184,13 +183,36 @@ class NativeScreen(legacy.Screen):
                              target=base+random.uniform(-spread, spread))
         return result
 
+    def logo_offsets(self, waiting):
+        if not self.prefs['motion']:
+            self.arrows.clear();self.arrow_settle=None;self.arrow_waiting=False
+            self.arrow_values=[0.]*5
+            return self.arrow_values
+        if waiting:
+            if not self.arrow_waiting:
+                self.arrows=[dict(start=self.time,duration=random.uniform(350,950),old=value,
+                                  target=random.uniform(-12,12)) for value in self.arrow_values]
+            self.arrow_waiting=True;self.arrow_settle=None
+            self.arrow_values=self.tween(self.arrows,[0]*5,12,self.time)
+        else:
+            if self.arrow_waiting:
+                self.arrow_settle=(self.time,tuple(self.arrow_values))
+                self.arrow_waiting=False;self.arrows.clear()
+            if self.arrow_settle:
+                started,values=self.arrow_settle
+                t=min(1,max(0,(self.time-started)/280))
+                eased=t*t*(3-2*t)
+                self.arrow_values=[value*(1-eased) for value in values]
+                if t>=1:self.arrow_settle=None
+        return self.arrow_values
+
     def logo(self, surf, center, size, waiting=False):
         # A separate alpha layer preserves the black/white center of the mark.
         size = max(1, round(size)); pad = round(size*.15)
         layer = pygame.Surface(((size+pad*2)*2, (size+pad*2)*2), pygame.SRCALPHA)
         scale = size*2/140
         inset = pad*2
-        offsets = self.tween(self.arrows, [0]*5, 12, self.time) if waiting and self.prefs['motion'] else [0]*5
+        offsets = self.logo_offsets(waiting)
         for arrow, offset in zip(legacy.ARROWS, offsets):
             angle, length, hl, hw, sw = arrow
             points = legacy.arrow_points(angle, length+offset, hl, hw, sw)
@@ -213,6 +235,7 @@ class NativeScreen(legacy.Screen):
         if not self.prefs['motion']:
             self.position = self.target; self.wheel_start = None
         else:
+            self.wheel_duration = min(650, 280 + abs(self.target-self.position)*65)
             self.wheel_start = (self.time, self.position)
 
     def step_selection(self, device, direction):
@@ -222,7 +245,7 @@ class NativeScreen(legacy.Screen):
     def update_wheel(self):
         if self.wheel_start:
             start, old = self.wheel_start
-            t = min(1, max(0, (self.time-start)/280))
+            t = min(1, max(0, (self.time-start)/self.wheel_duration))
             self.position = old+(self.target-old)*(1-(1-t)**3)
             if t >= 1: self.wheel_start = None
         self.selection = round(self.position)
@@ -301,6 +324,32 @@ class NativeScreen(legacy.Screen):
         return self.transition_value
 
     def paint(self,surf,device,ticks,draft):
+        view = 'app' if device.current() else 'arc' if self.launcher else 'home'
+        old = self.last_view
+        # Cache both pages once; animation frames only composite two surfaces.
+        changing = old != view and old is not None and 'app' in (old, view)
+        if changing and self.prefs['motion']:
+            outgoing = surf.copy()
+            self.page_transition = None
+            self._paint(surf,device,ticks,draft)
+            self.page_transition = (ticks,outgoing,surf.copy(),1 if view=='app' else -1)
+        elif not self.page_transition or not self.prefs['motion']:
+            self.page_transition = None
+            self._paint(surf,device,ticks,draft)
+        if self.page_transition:
+            self.time=ticks
+            start,outgoing,incoming,direction=self.page_transition
+            t=min(1,max(0,(ticks-start)/360))
+            eased=t*t*t*(t*(t*6-15)+10)
+            surf.fill(self.bg)
+            surf.blit(outgoing,(round(-direction*480*eased),0))
+            surf.blit(incoming,(round(direction*480*(1-eased)),0))
+            self.hits.clear()
+            if t>=1:
+                self.page_transition=None
+                self._paint(surf,device,ticks,draft)
+
+    def _paint(self,surf,device,ticks,draft):
         self.time=ticks;self.palette();self.update_wheel();self.hits.clear()
         surf.fill(self.bg);self.content_h=0
         app=device.current();view='app' if app else 'arc' if self.launcher else 'home'
@@ -323,8 +372,7 @@ class NativeScreen(legacy.Screen):
             self.label(surf,'omni',(240,490),64,True)
             self.add((0,58,480,560),'launcher')
             self.voice(surf,device.agent=='listening')
-            if device.say and device.agent != 'listening':self.label(surf,device.say,(240,566),17,width=420)
-            else:self.input_visual(surf,device,draft)
+            self.response_visual(surf,device)
             self.add((390,730,66,48),'request')
             pygame.draw.rect(surf,self.ink,(402,742,42,25),1,border_radius=3)
             for row in range(2):
@@ -336,22 +384,35 @@ class NativeScreen(legacy.Screen):
         else:
             body=pygame.Rect(0,58,480,726);surf.set_clip(body)
             self.app_view(surf,device,app,body);surf.set_clip(None)
+            if self.app_notice:
+                rect=pygame.Rect(18,710,444,66)
+                pygame.draw.rect(surf,self.bg,rect,border_radius=10)
+                pygame.draw.rect(surf,self.ink,rect,1,border_radius=10)
+                self.label(surf,self.app_notice,rect.center,16,width=420)
+                self.add(rect,'dismiss_notice')
         if self.keyboard:self.draw_keyboard(surf,device)
 
-    def input_visual(self, surf, device, draft):
-        if not self.prefs['show_input']:
-            self.transcript.clear()
-            return
-        if device.agent == 'listening':text=self.listening_text
-        elif device.agent == 'thinking':text=self.submitted_text
-        else:text=draft or self.submitted_text
+    def response_visual(self, surf, device):
+        speaking=device.agent=='listening'
+        mode='speech' if speaking or device.agent=='thinking' else 'response'
+        text=self.listening_text if speaking else self.submitted_text if device.agent=='thinking' else device.say
+        if mode!=self.text_mode:
+            self.transcript.clear();self.text_mode=mode
+            self.response_source=None
+        if mode=='response':
+            if text!=self.response_source:
+                self.response_source=text;self.response_started=self.time
+            words=text.split()
+            interval=42 if self.prefs['motion'] else 0
+            count=min(len(words),1+int((self.time-self.response_started)/interval)) if interval else len(words)
+            text=' '.join(words[:count])
         font=self.font(round(22*self.prefs['text_scale']))
         line_height=round(28*self.prefs['text_scale'])
         self.transcript.update(text,self.time,lambda value:font.size(value)[0],
                                line_height=line_height,animate=self.prefs['motion'],align='center')
         if not text:return
         # Each line remains centered; position changes ease as the text grows.
-        # Recognition/submission always use the original, unanimated text.
+        # Evolving ASR hypotheses and response words share the same soft reveal.
         layer=pygame.Surface((408,66),pygame.SRCALPHA)
         for word,x,y,opacity in self.transcript.frames(self.time):
             if opacity<=0 or y < -line_height or y>=66:continue
@@ -375,8 +436,7 @@ class NativeScreen(legacy.Screen):
             rows=[('Appearance','Dark' if prefs['theme']=='dark' else 'Light'),
                   ('Motion','On' if prefs['motion'] else 'Reduced'),
                   ('Text size','Standard' if prefs['text_scale']==1 else 'Large'),
-                  ('Preview wait',f"{prefs['wait_seconds']} seconds"),
-                  ('Live input','Shown' if prefs['show_input'] else 'Hidden'),('Back to apps','‹')]
+                  ('Preview wait',f"{prefs['wait_seconds']} seconds"),('Back to apps','‹')]
             for index,(label,value) in enumerate(rows):
                 rect=pygame.Rect(24,180+index*88,432,72)
                 pygame.draw.rect(surf,self.ink,rect,2 if index==self.setting_cursor else 1,border_radius=12)
@@ -435,7 +495,7 @@ class NativeApp(legacy.App):
         self.prefs=DEFAULTS.copy()
         try:
             saved=json.loads(self.preferences_path.read_text())
-            for key,choices in dict(theme=('dark','light'),motion=(True,False),text_scale=(1,1.15),wait_seconds=(3,10,20),clock24=(True,False),show_input=(True,False)).items():
+            for key,choices in dict(theme=('dark','light'),motion=(True,False),text_scale=(1,1.15),wait_seconds=(3,10,20),clock24=(True,False)).items():
                 if saved.get(key) in choices:self.prefs[key]=saved[key]
         except (OSError,ValueError,TypeError):pass
         self.device=Device();self.device.load_modules()
@@ -447,7 +507,16 @@ class NativeApp(legacy.App):
             old=existing.get(app['id'])
             if old and old.get('module')==app['module'] and isinstance(old.get('state'),dict):app['state']=old['state']
         builtin_ids={app['id'] for app in builtins}
-        self.device.registry=builtins+[app for app in self.device.registry if isinstance(app,dict) and app.get('id') not in builtin_ids and isinstance(app.get('state'),dict)]
+        generated=[app for app in self.device.registry if isinstance(app,dict) and app.get('id') not in builtin_ids and isinstance(app.get('state'),dict)]
+        migrated=[]
+        if generated:
+            backup=store.with_name('registry.pre-components.json')
+            if not backup.exists():backup.write_text(json.dumps(self.device.snapshot(),indent=2))
+        for app in generated:
+            try:migrated.append(to_composed(app))
+            except (ContractError,KeyError,ValueError,TypeError):
+                print('Skipped invalid saved app: %s (original registry backed up)' % app.get('id'),flush=True)
+        self.device.registry=builtins+migrated
         self.device.go_home();self.device.save(store)
         self.screen=NativeScreen(self.prefs)
         self.stub=stub;self.turn=turn if kiosk else 'none';self.kiosk=kiosk
@@ -455,7 +524,7 @@ class NativeApp(legacy.App):
         self.recorder=legacy.AudioRecorder()
         self.draft='';self.events=legacy.queue.Queue();self.press=None;self.stopping=False
         self.phone=pygame.Surface((480,800))
-        self.pending=None;self.request_number=0
+        self.pending=None;self.request_number=0;self.after_response=None;self.response_ready_at=None;self.deferred_effect=None
         self.speech_preview=None;self.speech_segments=[]
         self.speech=speech;self.speech_session=None;self.speech_finalizing=False
 
@@ -464,20 +533,31 @@ class NativeApp(legacy.App):
         temporary=self.preferences_path.with_suffix('.tmp')
         temporary.write_text(json.dumps(self.prefs,indent=2));temporary.replace(self.preferences_path)
 
-    def set_launcher(self, value):
+    def set_launcher(self, value, clear_response=True):
         self.device.go_home();self.screen.launcher=value;self.screen.scroll=0
+        if not value and clear_response:
+            self.device.say='';self.device.respond_until=None
+            self.screen.transcript.clear();self.screen.response_source=None
+            self.screen.text_mode=None
         self.device.save(self.store)
 
     def send(self,text="",wav_base64=None):
         text=(text or '').strip()
-        if (not text and not wav_base64) or self.pending:return
+        if (not text and not wav_base64) or self.pending or self.after_response:return
         self.screen.submitted_text=text
-        self.draft='';self.screen.keyboard=None;self.screen.wave.clear();self.screen.arrows.clear()
-        self.set_launcher(False)
+        self.draft='';self.screen.keyboard=None;self.screen.wave.clear()
+        self.set_launcher(False,clear_response=False)
+        self.screen.text_mode='speech';self.screen.response_source=None
         self.device.agent='thinking';self.device.say='';self.device.respond_until=None
         self.request_number+=1
-        due=time.monotonic()+self.prefs['wait_seconds']
+        local=match_command(text,self.prefs,self.device.registry)
+        due=time.monotonic()+(0 if self.live or local else self.prefs['wait_seconds'])
         self.pending=dict(request=text or 'Voice request',due=due,number=self.request_number)
+        if local:
+            self.pending['local']=True
+            self.pending['effect']=local.effect
+            self.events.put((self.request_number,local.turn))
+            return
         if self.live:
             payload=dict(text=text,registry=copy.deepcopy([a for a in self.device.registry if a['module'] not in {b[2] for b in BUILTINS}]),focused_app_id=None)
             if wav_base64:
@@ -496,7 +576,7 @@ class NativeApp(legacy.App):
                 print('Gemini turn:\n%s' % json.dumps(result,indent=2),flush=True)
             except TurnError as error:
                 print('Gemini: %s' % error,flush=True)
-                result={'op':'say','say':str(error)}
+                result=error
             self.events.put((number,result))
             return
         try:self.events.put((number,legacy.post_json(self.stub,payload)))
@@ -510,7 +590,74 @@ class NativeApp(legacy.App):
         self.screen.selection=index;self.screen.position=self.screen.target=float(index);self.screen.wheel_start=None
         self.device.agent='idle';self.device.say='';self.set_launcher(True)
 
+    def navigate_app(self, app_id):
+        if not self.prefs['motion']:
+            self.device.open_app(app_id)
+            self.screen.launcher=True;self.screen.scroll=0
+            index=next(i for i,a in enumerate(self.device.registry) if a['id']==app_id)
+            self.screen.position=self.screen.target=float(index);self.screen.selection=index
+            self.device.save(self.store)
+            return
+        index=next(i for i,a in enumerate(self.device.registry) if a['id']==app_id)
+        # Start at a real app maximally distant around the circular registry.
+        start=(index+len(self.device.registry)//2)%len(self.device.registry)
+        self.screen.position=self.screen.target=float(start);self.screen.selection=start
+        self.screen.wheel_start=None
+        self.set_launcher(True)
+        self.screen.navigation=dict(app_id=app_id,stage='arrive')
+
+    def poll_navigation(self):
+        screen=self.screen;route=screen.navigation
+        if not route:return
+        if screen.transition or screen.page_transition or screen.last_view!='arc':return
+        if route['stage']=='arrive':
+            index=next(i for i,a in enumerate(self.device.registry) if a['id']==route['app_id'])
+            n=len(self.device.registry)
+            # Rotate the shortest distance, including across the end of the list.
+            target=screen.position+(index-screen.position+n/2)%n-n/2
+            screen.wheel_to(target)
+            route['stage']='rotate'
+        elif not screen.wheel_start:
+            if route['stage']=='rotate':
+                route.update(stage='focus',until=screen.time+120)
+            elif screen.time>=route['until']:
+                screen.navigation=None
+                self.device.open_app(route['app_id']);screen.scroll=0
+                self.device.save(self.store)
+
+    def poll_response(self):
+        turn=self.after_response
+        if turn is None:return
+        screen=self.screen
+        if (screen.last_view!='home' or screen.transition or screen.page_transition or
+                screen.text_mode!='response' or screen.response_source!=turn['say'] or
+                screen.transcript.text!=' '.join(turn['say'].split()) or
+                not screen.transcript.settled(screen.time)):
+            self.response_ready_at=None;return
+        # Start the action only after actual rendered text has finished revealing
+        # and remained readable. Do not count backend or hidden-screen time.
+        if self.response_ready_at is None:self.response_ready_at=screen.time
+        if screen.time < self.response_ready_at+1200:return
+        self.after_response=None
+        effect=self.deferred_effect;self.deferred_effect=None
+        if effect:self.apply_local_effect(effect)
+        else:self.apply_result(turn)
+
+    def apply_local_effect(self,effect):
+        if effect['kind']=='preference':
+            self.prefs[effect['key']]=effect['value']
+            self.save_preferences()
+        elif effect['kind']=='note':
+            app=self.device.find('notes')
+            previous=app['state'].get('text','')
+            app['state']['text']=previous+('\n' if previous else '')+effect['text']
+            self.device.save(self.store);self.navigate_app('notes')
+        elif effect['kind']=='calculation':
+            self.screen.calculator=effect['value'];self.navigate_app('calculator')
+
     def poll(self):
+        self.poll_response()
+        self.poll_navigation()
         self.poll_speech()
         if not self.pending:return
         while not self.events.empty():
@@ -519,9 +666,42 @@ class NativeApp(legacy.App):
         if time.monotonic()<self.pending['due']:return
         if self.live and 'result' not in self.pending:return
         pending=self.pending;self.pending=None
-        if not self.live:
-            self.select_app(demo_app(pending['request'],self.device.registry));return
-        result=pending['result']
+        if pending.get('local'):
+            result=pending['result']
+        elif not self.live:
+            request=pending['request']
+            navigate=preview_navigation(request,self.device.registry)
+            if navigate:result=navigate
+            elif request.lower().lstrip().startswith(('what ','why ','how ','when ','where ','who ','is ','are ')):
+                result=message('This is the offline preview. Enable Gemini for answers.')
+            elif any(word in request.lower() for word in ('create','make','build','list','shop','water','hydrat','score','timer')):
+                result={'schema_version':2,'intent':'create_app','op':'propose','say':'Your app is ready.',
+                        'app':demo_app(request,self.device.registry)}
+            else:result=message('This is the offline preview. Enable Gemini for answers.')
+        else:result=pending['result']
+        if isinstance(result,Exception):
+            self.device.agent='idle';self.device.say=str(result);return
+        try:validate_turn(result,self.device.registry)
+        except (ContractError,TypeError):
+            self.device.agent='idle';self.device.say='The response could not be used. Please try again.'
+            return
+        self.device.last_turn=copy.deepcopy(result)
+        self.device.agent='idle';self.device.say=result['say']
+        self.device.save(self.store)
+        self.deferred_effect=pending.get('effect')
+        if self.deferred_effect or result['op'] in ('navigate','propose','mutate'):
+            self.after_response=copy.deepcopy(result);self.response_ready_at=None
+        # Messages stay here; app changes wait for their response to be read.
+
+    def apply_result(self,result):
+        if result['op']=='navigate':
+            self.device.agent='idle';self.device.say=result['say']
+            destination=result['destination']
+            if destination in ('agent','apps'):self.set_launcher(destination=='apps')
+            else:
+                app_id=result['app_id'] if destination=='app' else destination
+                self.navigate_app(app_id)
+            return
         if result and result.get('op')=='propose' and isinstance(result.get('app'),dict):
             app=result['app']
             if app.get('id') and app.get('module') in self.device.modules and isinstance(app.get('state'),dict):
@@ -534,7 +714,8 @@ class NativeApp(legacy.App):
                 self.screen.position=self.screen.target=float(index);self.screen.selection=index
                 self.device.agent='idle';self.set_launcher(True);return
         self.device.agent='idle'
-        self.device.say=(result or {}).get('say') or 'Could not reach the turn server. Try again.'
+        self.device.say=result['say']
+        self.device.save(self.store)
 
     def change_setting(self,index):
         self.screen.setting_cursor=index
@@ -546,7 +727,6 @@ class NativeApp(legacy.App):
         elif index==2:self.prefs['text_scale']=1.15 if self.prefs['text_scale']==1 else 1
         elif index==3:
             values=[3,10,20];self.prefs['wait_seconds']=values[(values.index(self.prefs['wait_seconds'])+1)%3]
-        elif index==4:self.prefs['show_input']=not self.prefs['show_input']
         else:self.set_launcher(True)
         self.save_preferences()
 
@@ -576,11 +756,17 @@ class NativeApp(legacy.App):
         else:keyboard['text']+= '\n' if key=='newline' else key
         if keyboard['kind']=='notes':
             self.device.find('notes')['state']['text']=keyboard['text'];self.device.save(self.store)
+        elif keyboard['kind']=='component':
+            keyboard['text']=keyboard['text'][:2000]
+            app=self.device.find(keyboard['app_id'])
+            fields(app)[keyboard['field_id']]['value']=keyboard['text']
+            self.device.save(self.store)
         else:self.draft=keyboard['text']
 
     def activate(self,hit):
-        if hit is None or self.pending or self.screen.transition:return
+        if hit is None or self.pending or self.after_response or self.screen.busy:return
         act=hit.act
+        if act=='dismiss_notice':self.screen.app_notice='';return
         if act=='launcher':self.set_launcher(True);return
         if act=='logo':self.set_launcher(False);return
         if act=='select':self.screen.wheel_to(hit.index);return
@@ -593,14 +779,38 @@ class NativeApp(legacy.App):
             self.screen.keyboard=dict(kind='notes',text=self.device.find('notes')['state'].get('text',''));return
         if act=='request':self.screen.keyboard=dict(kind='request',text=self.draft);return
         if act=='key':self.keyboard_key(hit.text);return
+        if act.startswith('component_'):
+            app=self.device.current()
+            if app is None or app.get('module')!='composed':return
+            state=fields(app)
+            if act=='component_input':
+                self.screen.keyboard=dict(kind='component',text=state[hit.text]['value'],app_id=app['id'],field_id=hit.text)
+                return
+            if act=='component_action':
+                operation=next(action for action in app['actions'] if action['id']==hit.text)
+                operation={key:value for key,value in operation.items() if key!='id'}
+            elif act=='component_toggle':operation={'action':'toggle','target':hit.text}
+            elif act=='component_item':
+                value=copy.deepcopy(state[hit.text]['value']);value[hit.index]['checked']=not value[hit.index]['checked']
+                operation={'action':'set','target':hit.text,'value':value}
+            else:return
+            try:updated=apply_operations(app,[operation])
+            except ContractError as error:
+                self.screen.app_notice=str(error);return
+            self.screen.app_notice=''
+            app['state']=updated['state'];self.device.save(self.store);return
         super().activate(hit)
 
     def on_down(self,pos):
-        if pos is None or self.pending or self.speech_session is not None or self.screen.transition:return
+        if pos is None or self.pending or self.after_response or self.speech_session is not None or self.screen.busy:return
         hit=self.screen.at(pos)
         now=pygame.time.get_ticks();self.screen.time=now
         self.press=dict(x=pos[0],y=pos[1],hit=hit,time=now,talk=bool(hit and hit.act=='talk'),moved=False,
                         scroll=self.screen.scroll)
+        app=self.device.current()
+        self.press['scrollable']=bool(not self.screen.keyboard and app and
+            app['module'] in ('notes','composed') and
+            (hit is None or hit.act=='edit_notes' or hit.act.startswith('component_')))
         if self.press['talk']:
             self.device.say=''
             self.screen.submitted_text=''
@@ -621,8 +831,13 @@ class NativeApp(legacy.App):
 
     def on_move(self,pos):
         press=self.press
-        if not press or pos is None or press['talk'] or self.screen.keyboard:return
-        if not press['moved'] and math.hypot(pos[0]-press['x'],pos[1]-press['y'])<6:return
+        if not press or pos is None or press['talk']:return
+        if press['hit'] and not press.get('wheel') and not press['scrollable']:
+            # Fixed controls own their gesture, including keyboard keys.
+            if not press['hit'].rect.inflate(TOUCH_PADDING*2,TOUCH_PADDING*2).collidepoint(pos):
+                press['moved']=True
+            return
+        if not press['moved'] and math.hypot(pos[0]-press['x'],pos[1]-press['y'])<TOUCH_SLOP:return
         press['moved']=True
         if press.get('wheel'):
             angle=math.atan2(pos[1]-CY,pos[0]-CX)
@@ -630,7 +845,9 @@ class NativeApp(legacy.App):
             press['angle']=angle
             self.screen.position-=delta/STEP;self.screen.target=self.screen.position
             self.screen.selection=round(self.screen.position)
-        elif self.device.current():self.screen.scroll=max(0,press['scroll']-(pos[1]-press['y']))
+        elif press['scrollable']:
+            limit=max(0,self.screen.content_h-726)
+            self.screen.scroll=min(limit,max(0,press['scroll']-(pos[1]-press['y'])))
 
     def cancel_press(self):
         if self.press and self.press.get('wheel'):self.screen.wheel_to(round(self.screen.position))
@@ -653,7 +870,6 @@ class NativeApp(legacy.App):
                 if should_send:
                     self.speech_finalizing=True
                     self.screen.submitted_text=self.screen.listening_text
-                    self.screen.arrows.clear()
                     self.device.agent='thinking';self.screen.wave.clear()
                     self.speech.finish(self.speech_session)
                 else:self.cancel_press()
@@ -671,12 +887,16 @@ class NativeApp(legacy.App):
             return
         if press.get('wheel') and press['moved']:
             self.screen.wheel_to(round(self.screen.position));return
-        if not press['moved'] and pos is not None:
-            hit=self.screen.at(pos)
-            if hit and press['hit'] and hit.act==press['hit'].act:self.activate(hit)
+        if not press['moved'] and pos is not None and press['hit']:
+            original=press['hit'];hit=self.screen.at(pos)
+            # Hits are rebuilt every frame. Compare the complete control identity,
+            # then activate the original control, never the one under a drifting finger.
+            same=hit is None or vars(hit)==vars(original)
+            if same and original.rect.inflate(TOUCH_PADDING*2,TOUCH_PADDING*2).collidepoint(pos):
+                self.activate(original)
 
     def scroll_input(self,direction):
-        if self.pending or self.speech_session is not None or self.screen.transition or self.screen.keyboard:return
+        if self.pending or self.after_response or self.speech_session is not None or self.screen.busy or self.screen.keyboard:return
         app=self.device.current()
         if app and app['module']=='settings':self.screen.setting_cursor=(self.screen.setting_cursor+direction)%SETTINGS_COUNT
         elif app:self.screen.scroll=max(0,self.screen.scroll+direction*48)
@@ -686,6 +906,10 @@ class NativeApp(legacy.App):
         mods=event.mod;ctrl=bool(mods & (pygame.KMOD_CTRL|pygame.KMOD_META))
         if ctrl and event.key==pygame.K_q and mods & pygame.KMOD_SHIFT:return 'quit'
         if event.key==pygame.K_ESCAPE:
+            if self.after_response is not None:
+                self.after_response=None;self.deferred_effect=None;self.set_launcher(False);return
+            if self.screen.navigation:
+                self.screen.navigation=None;self.set_launcher(True);return
             if self.speech_session is not None:self.cancel_press()
             elif self.screen.keyboard:self.screen.keyboard=None
             elif self.pending:
@@ -693,7 +917,7 @@ class NativeApp(legacy.App):
             elif self.device.current():self.set_launcher(True)
             elif self.screen.launcher:self.set_launcher(False)
             return
-        if self.pending or self.speech_session is not None or self.screen.transition:return
+        if self.pending or self.after_response or self.speech_session is not None or self.screen.busy:return
         if ctrl and event.key==pygame.K_d:
             self.device.registry=default_apps();self.device.save(self.store);self.screen.position=self.screen.target=0;self.set_launcher(True);return
         if ctrl:return
@@ -727,7 +951,7 @@ class NativeApp(legacy.App):
                 self.screen.listening_text=self.draft
 
     def on_text(self,text):
-        if self.pending or self.speech_session is not None or self.screen.transition or not text:return
+        if self.pending or self.after_response or self.speech_session is not None or self.screen.busy or not text:return
         if self.screen.keyboard:self.keyboard_key(text);return
         app=self.device.current()
         if app and app['module']=='notes':

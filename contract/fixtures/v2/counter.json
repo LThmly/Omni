@@ -1,0 +1,51 @@
+{
+  "id": "simple_counter",
+  "module": "composed",
+  "title": "Counter",
+  "state": {
+    "fields": [
+      {
+        "type": "number",
+        "id": "count",
+        "value": 0,
+        "min": 0,
+        "max": 9999
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "number",
+      "id": "count_display",
+      "label": "Count",
+      "bind": "count",
+      "unit": ""
+    },
+    {
+      "type": "button",
+      "id": "btn_increment",
+      "label": "Increase",
+      "action": "act_increment"
+    },
+    {
+      "type": "button",
+      "id": "btn_reset",
+      "label": "Reset",
+      "action": "act_reset"
+    }
+  ],
+  "actions": [
+    {
+      "id": "act_increment",
+      "action": "increment",
+      "target": "count",
+      "amount": 1
+    },
+    {
+      "id": "act_reset",
+      "action": "set",
+      "target": "count",
+      "value": 0
+    }
+  ]
+}

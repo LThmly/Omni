@@ -75,6 +75,10 @@ with tarfile.open(archive) as source:
         for name in retired:
             if name not in manifest['files']:(root/name).unlink(missing_ok=True)
         check()
+        if python=='python3':
+            subprocess.run(['python3','-m','venv','--system-site-packages',str(root/'.venv')],check=True)
+            python=str(root/'.venv/bin/python')
+        subprocess.run([python,'-m','pip','install','-r','cloud/requirements.txt'],cwd=root,check=True)
         env=os.environ.copy();env.update(SDL_VIDEODRIVER='dummy',SDL_AUDIODRIVER='dummy')
         for folder in ('firmware','cloud'):
             subprocess.run([python,'-m','unittest','discover','-s',folder,'-p','test_*.py'],cwd=root,env=env,check=True)

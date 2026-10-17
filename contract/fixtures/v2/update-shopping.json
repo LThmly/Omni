@@ -1,0 +1,21 @@
+{
+  "turn": {
+    "schema_version": 2,
+    "intent": "update_app",
+    "op": "mutate",
+    "say": "Added coffee.",
+    "app_id": "shopping",
+    "actions": [
+      {
+        "action": "set",
+        "target": "entry",
+        "value": "Coffee"
+      },
+      {
+        "action": "append",
+        "target": "items",
+        "source": "entry"
+      }
+    ]
+  }
+}

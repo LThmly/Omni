@@ -1,0 +1,23 @@
+{
+  "id": "reference_notes",
+  "module": "composed",
+  "title": "Notes",
+  "state": {
+    "fields": []
+  },
+  "components": [
+    {
+      "id": "row_0",
+      "type": "text",
+      "text": "Next: Standup",
+      "bind": null
+    },
+    {
+      "id": "row_1",
+      "type": "text",
+      "text": "Room: B",
+      "bind": null
+    }
+  ],
+  "actions": []
+}

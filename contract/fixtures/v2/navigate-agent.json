@@ -1,0 +1,10 @@
+{
+  "turn": {
+    "schema_version": 2,
+    "intent": "navigate",
+    "op": "navigate",
+    "say": "Opening Omni.",
+    "destination": "agent",
+    "app_id": null
+  }
+}

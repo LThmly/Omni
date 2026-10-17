@@ -113,6 +113,14 @@ class TranscriptAnimator:
         self.scroll_to=max(0,y-line_height)
         self.scroll_at=now
 
+    def settled(self,now):
+        """True once the currently presented text has finished fading/moving."""
+        if not self.animate:return True
+        ends=[self.scroll_at+self.SCROLL_MS]
+        ends.extend(max(word.born_at+self.FADE_MS,word.moved_at+self.MOVE_MS) for word in self.words)
+        ends.extend(word.retired_at+self.FADE_MS for word in self.retired)
+        return now>=max(ends)
+
     def frames(self,now):
         """Word, x, y, opacity tuples in the two-line viewport."""
         self.retired=[word for word in self.retired if self.opacity(word,now)>.01]

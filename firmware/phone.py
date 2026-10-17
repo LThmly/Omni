@@ -447,14 +447,17 @@ class Screen:
             2,
         )
         self.add(back, "back", clip=body)
-        module = self.font(13).render(str(app.get("module") or "").upper(), True, MUTED)
+        module = self.font(13).render("" if app.get("module")=="composed" else str(app.get("module") or "").upper(), True, MUTED)
         surf.blit(module, module.get_rect(midright=(head.right, head.centery)))
         title_w = max(0, head.width - 40 - 12 - module.get_width() - 12)
         title = self.text(self.font(26, bold=True), app.get("title"), title_w, INK)
         surf.blit(title, title.get_rect(midleft=(back.right + 8, head.centery)))
         y += layout["header_h"] + 12
         module_name = app.get("module")
-        if module_name == "checklist":
+        if module_name == "composed":
+            from components import render
+            y = render(self,surf,app,layout,y,body)
+        elif module_name == "checklist":
             y = self.checklist(surf, app, layout, y, body)
         elif module_name == "scoreboard":
             y = self.scoreboard(surf, app, layout, y, body)

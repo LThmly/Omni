@@ -1,0 +1,40 @@
+{
+  "id": "water",
+  "module": "composed",
+  "title": "Water",
+  "state": {
+    "fields": [
+      {
+        "id": "value",
+        "type": "number",
+        "value": 16,
+        "min": 0,
+        "max": 64
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "progress_view",
+      "type": "progress",
+      "label": "Water",
+      "bind": "value",
+      "goal": 64,
+      "unit": "oz"
+    },
+    {
+      "id": "add_button",
+      "type": "button",
+      "label": "Add 8 oz",
+      "action": "increase"
+    }
+  ],
+  "actions": [
+    {
+      "id": "increase",
+      "action": "increment",
+      "target": "value",
+      "amount": 8
+    }
+  ]
+}

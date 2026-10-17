@@ -1,0 +1,8 @@
+{
+  "turn": {
+    "schema_version": 2,
+    "intent": "message",
+    "op": "say",
+    "say": "Hello! How can I help?"
+  }
+}

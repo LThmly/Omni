@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Keyword /v1/turn for firmware and the simulator. Not the demo model."""
 
-import base64
-import io
 import json
 import os
 import re
@@ -11,11 +9,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "contract" / "fixtures"
-TURNS = ROOT / "turns"
-
-
-def load(name):
-    return json.loads((TURNS / name).read_text())
 
 
 def tokens(text):
@@ -34,54 +27,37 @@ except ImportError:
     try_turn = None
 
 
-def transcribe_audio(wav_b64):
-    try:
-        import speech_recognition as sr
-        r = sr.Recognizer()
-        data = base64.b64decode(wav_b64)
-        with io.BytesIO(data) as in_f, sr.AudioFile(in_f) as source:
-            audio = r.record(source)
-            return r.recognize_google(audio)
-    except Exception:
-        return ""
-
-
 def respond(body):
-    text = (body.get("text") or "").strip()
-    wav_b64 = body.get("wav_base64")
-    registry = body.get("registry") or []
-
-    # 1. If Gemini API key is configured, query the real AI model
-    if try_turn is not None and (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
-        try:
-            return try_turn.ask(text, registry, wav_base64=wav_b64)
-        except Exception as exc:
-            print("Gemini call failed, falling back to stub:", exc)
-
-    # 2. If audio was sent without text, try speech-to-text
-    if wav_b64 and not text:
-        text = transcribe_audio(wav_b64)
-
-    words = tokens(text)
-    has_list = any(app.get("module") == "checklist" for app in registry)
-
-    if has(words, "score", "ping", "pong"):
-        return load("propose-scoreboard.json")
-    if has(words, "water", "ounce", "hydrat"):
-        return load("propose-hydration.json")
-    if has_list and has(words, "coffee", "bread", "eggs", "add"):
-        return load("mutate-shopping.json")
-    if has(words, "milk", "shopping", "list") and not has_list:
-        return load("propose-shopping.json")
-
-    # If spoken audio was provided in offline stub mode
-    if wav_b64 and not words:
-        if not has_list:
-            return load("propose-shopping.json")
-        else:
-            return load("mutate-shopping.json")
-
-    return load("say.json")
+    from contract.runtime import message,validate_turn,preview_navigation
+    text=(body.get('text') or '').strip()
+    registry=body.get('registry') or []
+    if try_turn is not None:
+        try_turn.load_env()
+        if os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_API_KEY'):
+            # A failed Gemini call is an error, never a fabricated preview app.
+            return try_turn.ask(text,registry,wav_base64=body.get('wav_base64'))
+    navigate=preview_navigation(text,registry)
+    if navigate:return validate_turn(navigate,registry)
+    words=tokens(text)
+    fixtures=ROOT/'v2'
+    def example(name):return json.loads((fixtures/name).read_text())['turn']
+    if has(words,'what','why','how','hello','hi'):
+        return message('This is the offline preview. Enable Gemini for answers.')
+    if has(words,'add','append') and has(words,'coffee','bread','eggs','milk'):
+        target=next((app for app in registry if app.get('module')=='composed' and
+                     any(field.get('id')=='items' for field in app['state']['fields']) and
+                     any(field.get('id')=='entry' for field in app['state']['fields'])),None)
+        if target:
+            turn=example('update-shopping.json');turn['app_id']=target['id']
+            turn['actions'][0]['value']=next(label for label in ('Coffee','Bread','Eggs','Milk') if has(words,label.lower()))
+            turn['say']='Added '+turn['actions'][0]['value'].lower()+'.'
+            return validate_turn(turn,registry)
+    name='create-scoreboard.json' if has(words,'score','ping','pong') else 'create-hydration.json' if has(words,'water','ounce','hydrat') else 'create-shopping.json' if has(words,'milk','shopping','list') else None
+    if not name:return message('This is the offline preview. Ask for a shopping list, scoreboard, or progress tracker.')
+    turn=example(name);base=turn['app']['id'];suffix=2
+    while any(app.get('id')==turn['app']['id'] for app in registry):
+        turn['app']['id']=base+'_'+str(suffix);suffix+=1
+    return validate_turn(turn,registry)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -106,7 +82,14 @@ class Handler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             self.send_error(400)
             return
-        payload = json.dumps(respond(body)).encode()
+        try:result=respond(body)
+        except (ValueError,TypeError,AttributeError):
+            self.send_error(400,'Invalid turn request');return
+        except try_turn.TurnError:
+            payload=json.dumps({'error':'Gemini could not return a valid response.'}).encode()
+            self.send_response(502);self._cors();self.send_header('Content-Type','application/json')
+            self.send_header('Content-Length',str(len(payload)));self.end_headers();self.wfile.write(payload);return
+        payload = json.dumps(result).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self._cors()

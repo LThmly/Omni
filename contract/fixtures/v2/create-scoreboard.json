@@ -1,0 +1,97 @@
+{
+  "turn": {
+    "schema_version": 2,
+    "intent": "create_app",
+    "op": "propose",
+    "say": "Your ping pong app is ready.",
+    "app": {
+      "id": "pingpong",
+      "module": "composed",
+      "title": "Ping pong",
+      "state": {
+        "fields": [
+          {
+            "id": "score_0",
+            "type": "number",
+            "value": 0,
+            "min": 0,
+            "max": 1000000
+          },
+          {
+            "id": "score_1",
+            "type": "number",
+            "value": 0,
+            "min": 0,
+            "max": 1000000
+          }
+        ]
+      },
+      "components": [
+        {
+          "id": "score_0_view",
+          "type": "number",
+          "label": "Me",
+          "bind": "score_0",
+          "unit": ""
+        },
+        {
+          "id": "score_0_up_button",
+          "type": "button",
+          "label": "Me +1",
+          "action": "score_0_up"
+        },
+        {
+          "id": "score_0_down_button",
+          "type": "button",
+          "label": "Me \u22121",
+          "action": "score_0_down"
+        },
+        {
+          "id": "score_1_view",
+          "type": "number",
+          "label": "Alex",
+          "bind": "score_1",
+          "unit": ""
+        },
+        {
+          "id": "score_1_up_button",
+          "type": "button",
+          "label": "Alex +1",
+          "action": "score_1_up"
+        },
+        {
+          "id": "score_1_down_button",
+          "type": "button",
+          "label": "Alex \u22121",
+          "action": "score_1_down"
+        }
+      ],
+      "actions": [
+        {
+          "id": "score_0_up",
+          "action": "increment",
+          "target": "score_0",
+          "amount": 1
+        },
+        {
+          "id": "score_0_down",
+          "action": "increment",
+          "target": "score_0",
+          "amount": -1
+        },
+        {
+          "id": "score_1_up",
+          "action": "increment",
+          "target": "score_1",
+          "amount": 1
+        },
+        {
+          "id": "score_1_down",
+          "action": "increment",
+          "target": "score_1",
+          "amount": -1
+        }
+      ]
+    }
+  }
+}

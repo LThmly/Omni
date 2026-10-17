@@ -1,0 +1,77 @@
+{
+  "turn": {
+    "schema_version": 2,
+    "intent": "create_app",
+    "op": "propose",
+    "say": "Your shopping app is ready.",
+    "app": {
+      "id": "shopping",
+      "module": "composed",
+      "title": "Shopping",
+      "state": {
+        "fields": [
+          {
+            "id": "items",
+            "type": "items",
+            "value": [
+              {
+                "id": "item_0",
+                "label": "Milk",
+                "checked": false
+              },
+              {
+                "id": "item_1",
+                "label": "Bread",
+                "checked": false
+              }
+            ]
+          },
+          {
+            "id": "entry",
+            "type": "text",
+            "value": ""
+          }
+        ]
+      },
+      "components": [
+        {
+          "id": "items_view",
+          "type": "list",
+          "label": "Items",
+          "bind": "items"
+        },
+        {
+          "id": "entry_input",
+          "type": "input",
+          "label": "New item",
+          "bind": "entry"
+        },
+        {
+          "id": "add_button",
+          "type": "button",
+          "label": "Add item",
+          "action": "append_item"
+        },
+        {
+          "id": "clear_button",
+          "type": "button",
+          "label": "Remove checked",
+          "action": "remove_done"
+        }
+      ],
+      "actions": [
+        {
+          "id": "append_item",
+          "action": "append",
+          "target": "items",
+          "source": "entry"
+        },
+        {
+          "id": "remove_done",
+          "action": "remove_checked",
+          "target": "items"
+        }
+      ]
+    }
+  }
+}
