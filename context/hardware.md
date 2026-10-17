@@ -15,6 +15,8 @@
 
 ## Wiring & Pinout List
 
+Wire to the silkscreen pad (`D8`, `D10`, …). The chip GPIO is in parentheses and does not match the pad index: `D8` is GPIO7. Sources: the [Seeed pin table](https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/) and the `XIAO_ESP32S3_Plus` Arduino variant.
+
 ### Power Subsystem
 - **Battery Red Lead (+):** Connect to SPDT Switch Center Pin
 - **SPDT Switch Outer Pin:** Connect to XIAO `BAT+` pad (underside pad)
@@ -23,24 +25,24 @@
 ### Adafruit 4224 (eInk Friend) -> XIAO ESP32S3 Plus
 - **VIN** -> `3V3`
 - **GND** -> `GND`
-- **SCK** -> `D8` (GPIO 8)
-- **MOSI** -> `D10` (GPIO 10)
-- **ECS (Display CS)** -> `D0` (GPIO 1)
-- **DC (Data/Command)** -> `D1` (GPIO 2)
-- **RST (Reset)** -> `D2` (GPIO 3)
-- **BUSY** -> `D9` (GPIO 9)
-- **MISO & SRCS:** Disconnected (uses MCU 8MB internal PSRAM)
+- **SCK** -> `D8` (GPIO7)
+- **MOSI** -> `D10` (GPIO9). GPIO9 is a strapping pin; confirm the Friend does not hold it during boot.
+- **ECS (Display CS)** -> `D0` (GPIO1)
+- **DC (Data/Command)** -> `D1` (GPIO2)
+- **RST (Reset)** -> `D2` (GPIO3). GPIO3 is a strapping pin; same boot caution as MOSI.
+- **BUSY** -> `D9` (GPIO8). This pad is also the hardware MISO pin. Using it as a GPIO input is fine because the panel is not read.
+- **MISO & SRCS:** Leave disconnected. The panel is write-only SPI, and the Friend's SD card is unused. The 8MB PSRAM is on the XIAO itself and does not use these pins.
 
 ### Adafruit 6049 (I2S Microphone) -> XIAO ESP32S3 Plus
 - **3V3** -> `3V3` (shared with eInk Friend)
 - **GND** -> `GND` (shared with system ground)
-- **DOUT (Data Out)** -> `D7` (GPIO 7)
-- **BCLK (Bit Clock)** -> `D6` (GPIO 6)
-- **LRCL / WS (Word Select)** -> `D5` (GPIO 5)
+- **DOUT (Data Out)** -> `D7` (GPIO44). This pad is also the default UART RX. Logs stay on native USB, so the mic can take it.
+- **BCLK (Bit Clock)** -> `D6` (GPIO43). Default UART TX. Same note as DOUT.
+- **LRCL / WS (Word Select)** -> `D5` (GPIO6)
 - **SEL:** Tie to `GND` (Left audio channel)
 
 ### Same Sky TS43 Thumbwheel -> XIAO ESP32S3 Plus
 - **Common Pin:** Connect to `GND`
-- **Up Contact:** Connect to `D4` (GPIO 4)
-- **Down Contact:** Connect to `D3` (GPIO 3 / D3 pad)
-- **Center Push Contact:** Connect to Underside Pad `GPIO 11` (or `GPIO 12`)
+- **Up Contact:** Connect to `D4` (GPIO5)
+- **Down Contact:** Connect to `D3` (GPIO4). Reset is the neighboring pad, `D2` / GPIO3.
+- **Center Push Contact:** Connect to underside / edge pad `D19` (GPIO11)

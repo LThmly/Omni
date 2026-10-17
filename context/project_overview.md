@@ -48,6 +48,8 @@ The home screen splits into two primary zones:
 
 ## 4. Proposed Technical Architecture
 
+How this runs in the demo — who compiles, what the model is allowed to emit, the e-ink refresh budget, and the simulator — is decided in [architecture.md](architecture.md).
+
 Because the **Seeed Studio XIAO ESP32S3 Plus** (with 8MB PSRAM and Wi-Fi) cannot recompile C++ firmware on the fly, Omni separates the **System Shell** from **Generative App Definitions**:
 
 ```
