@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <rom/rtc.h>
+#include "eink.h"
 #include "wifi_link.h"
 
 void setup() {
@@ -27,6 +28,7 @@ void setup() {
                 d10_boot ? "HIGH (Safe)" : "LOW (Warning)");
   Serial.println("=====================================\n");
 
+  einkShowLogo();
   wifiConnect();
 }
 

@@ -9,11 +9,11 @@ pio run -t upload
 pio device monitor
 ```
 
-`src/main.cpp` prints the boot test, then `src/wifi_link.cpp` joins the network. The `ufdevice` name and password are in `src/wifi_link.h`. `src/ai.cpp` is the Vertex client for a later shell call: `aiAsk(text, registryJson, turnJson)` returns the inner propose, mutate, or say object. The key is `GEMINI_API_KEY` in `src/gemini_key.h`, copied from the repo-root `.env`. That header stays untracked. Boot does not call the model.
+`src/main.cpp` prints the boot test, then `src/eink.cpp` copies the simulator's agent home pixels onto the 6382. Those pixels live in `src/sim_home.h`. It prints `eink: refresh` with how long the panel stayed busy. Expect about 10–15 seconds. To put a different sim screen on the board, set the waveform to Instant, download the PNG, and run `python3 sim/pack_frame.py that.png`. After that, `src/wifi_link.cpp` joins the network. The `ufdevice` name and password are in `src/wifi_link.h`. `src/ai.cpp` is the Vertex client for a later shell call: `aiAsk(text, registryJson, turnJson)` returns the inner propose, mutate, or say object. The key is `GEMINI_API_KEY` in `src/gemini_key.h`, copied from the repo-root `.env`. That header stays untracked. Boot does not call the model.
 
 ## Own this
 
-- Display driver for the Adafruit 6382 (SSD1683, 400×300, black / white / red) on the 4224 Friend
+- Display driver for the Adafruit 6382 (SSD1683, 400×300, black / white / red) on the 4224 Friend. `src/eink.cpp` is the first paint
 - Thumbwheel actions from `contract/modules/`
 - LittleFS store for the registry
 - `aiAsk` in `src/ai.cpp`. Send `text` until the mic path exists
