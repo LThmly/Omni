@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "_comment": "Example configuration for extract-fonts CLI tool",
+
+  "fontsDir": "./node_modules/adafruit-gfx-library/Fonts",
+  "customFontsDir": "./src/fonts",
+  "fonts": [
+    "FreeSans9pt7b",
+    "FreeSansBold9pt7b",
+    "FreeMono9pt7b"
+  ],
+  "output": "./src/generated/font-data.ts"
+}

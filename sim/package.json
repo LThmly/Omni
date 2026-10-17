@@ -1,0 +1,60 @@
+{
+  "name": "eink-simulator",
+  "version": "1.0.0",
+  "description": "Web-based e-ink display simulator with pixel-perfect Adafruit GFX font rendering",
+  "main": "dist/eink-simulator.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/eink-simulator.js"
+    },
+    "./fonts": {
+      "types": "./dist/generated/font-data.d.ts",
+      "import": "./dist/generated/font-data.js"
+    },
+    "./bundle": "./dist/eink-simulator.bundle.js"
+  },
+  "bin": {
+    "extract-fonts": "./scripts/extract-fonts.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "scripts"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/bundle.js",
+    "build:fonts": "echo 'Use: npx extract-fonts --config fonts.config.json'",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "e-ink",
+    "eink",
+    "display",
+    "simulator",
+    "adafruit",
+    "gfx",
+    "esp32",
+    "embedded",
+    "canvas",
+    "bitmap-font"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/slavik0329/eink-simulator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/slavik0329/eink-simulator/issues"
+  },
+  "homepage": "https://github.com/slavik0329/eink-simulator#readme",
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
