@@ -42,8 +42,8 @@ DOCK_TOP = 724
 BODY_H = DOCK_TOP - HEADER_H
 PTT = pygame.Rect(16, 734, 448, 52) if pygame else None
 
-BG = (22, 24, 31)
-INK = (246, 243, 238)
+BG = (0, 0, 0)
+INK = (255, 255, 255)
 MUTED = (167, 173, 186)
 CARD = (34, 38, 51)
 CARD2 = (42, 48, 64)
@@ -205,6 +205,8 @@ class Hit:
 
 class Screen:
     def __init__(self):
+        self.launcher = False
+        self.selection = 0
         self.hits = []
         self.scroll = 0
         self.content_h = 0
@@ -229,7 +231,8 @@ class Screen:
             self.hits.clear()
             self.content_h = 0
             surf.fill(BG)
-            self.header(surf, device, ticks, draft)
+            if device.current() is not None or draft or device.agent != "idle":
+                self.header(surf, device, ticks, draft)
             body = pygame.Rect(0, HEADER_H, PW, BODY_H)
             surf.set_clip(body)
             app = device.current()
@@ -317,59 +320,97 @@ class Screen:
         rendered = self.text(face, label, max(0, right - x), INK)
         surf.blit(rendered, rendered.get_rect(midleft=(x, HEADER_H / 2)))
 
-    def home(self, surf, device, ticks, body):
-        if not device.registry:
-            self.empty_home(surf, device, ticks, body)
-            return
-        word = self.font(22, word=True)
-        y = 16
-        y += 12
-        center = (PW / 2, self.cy(y + 44, body))
-        blit_mark(surf, 88, center, ticks, device.agent == "listening")
-        y += 88 + 6
-        rendered = word.render("omni", True, INK)
-        surf.blit(rendered, rendered.get_rect(midtop=(PW / 2, self.cy(y, body))))
-        y += rendered.get_height() + 18
-        for app in device.registry:
-            rect = pygame.Rect(18, self.cy(y, body), PW - 36, 72)
-            self.tile(surf, rect, app)
-            self.add(rect, "open", clip=body, app_id=app.get("id"))
-            y += 82
-        y += 4
-        self.chips(surf, y, body)
-        y += 48 + 8
-        self.content_h = y
+    def step_selection(self, device, direction):
+        self.launcher = True
+        if device.registry:
+            self.selection = (self.selection + direction) % len(device.registry)
 
-    def empty_home(self, surf, device, ticks, body):
-        word = self.font(44, word=True)
-        block = 12 + 148 + 6 + word.get_height() + 18 + 28 + 14 + 48
-        y = max(0, (BODY_H - block) / 2)
-        blit_mark(surf, 148, (PW / 2, self.cy(y + 12 + 74, body)), ticks, device.agent == "listening")
-        y += 12 + 148 + 6
-        rendered = word.render("omni", True, INK)
-        surf.blit(rendered, rendered.get_rect(midtop=(PW / 2, self.cy(y, body))))
-        y += rendered.get_height() + 18
-        hint = self.font(18).render("Tap List, Score, or Water.", True, MUTED)
-        surf.blit(hint, hint.get_rect(midtop=(PW / 2, self.cy(y, body))))
-        y += 28 + 14
-        self.chips(surf, y, body)
+    def home(self, surf, device, ticks, body):
         self.content_h = BODY_H
+        if not self.launcher:
+            blit_mark(surf, 246, (240, 320), ticks, device.agent == "listening")
+            word = self.font(64, word=True).render("omni", True, INK)
+            surf.blit(word, word.get_rect(midtop=(240, 454)))
+            hint = self.font(17).render("Tap to explore", True, MUTED)
+            surf.blit(hint, hint.get_rect(center=(240, 632)))
+            self.add(body, "launcher", clip=body)
+            return
+        # The original simulator's corner arc, scaled to the portrait LCD.
+        blit_mark(surf, 94, (410, 112), ticks, False)
+        word = self.font(36, word=True).render("omni", True, INK)
+        surf.blit(word, word.get_rect(midright=(350, 106)))
+        self.add((270, 65, 195, 90), "logo", clip=body)
+        if not device.registry:
+            title = self.font(30, word=True).render("your apps", True, INK)
+            surf.blit(title, title.get_rect(midright=(444, 216)))
+            hint = self.font(19).render("Ask Omni to make something.", True, MUTED)
+            surf.blit(hint, hint.get_rect(center=(240, 380)))
+            self.chips(surf, 390, body)
+            return
+        self.selection %= len(device.registry)
+        app = device.registry[self.selection]
+        title = self.text(self.font(32, word=True), app.get("title", "").lower(), 410, INK)
+        surf.blit(title, title.get_rect(midright=(444, 211)))
+        pygame.draw.rect(surf, INK, (374, 249, 70, 4))
+        detail = self.text(self.font(16), blurb(app), 300, MUTED)
+        surf.blit(detail, detail.get_rect(midright=(444, 278)))
+        cx, cy, radius = -8, 686, 328
+        points = [(cx + math.cos(math.radians(a)) * radius,
+                   cy + math.sin(math.radians(a)) * radius) for a in range(-86, -3)]
+        pygame.draw.lines(surf, INK, False, points, 2)
+        slots = [(-2, -80, 28), (-1, -62, 37), (0, -42, 58), (1, -22, 37), (2, -6, 28)]
+        # Small registries show each app once, always including the focus.
+        seen = set()
+        nodes = []
+        for offset, angle, r in sorted(slots, key=lambda slot: abs(slot[0])):
+            index = (self.selection + offset) % len(device.registry)
+            if index in seen:
+                continue
+            seen.add(index)
+            nodes.append((offset, angle, r, index))
+        for offset, angle, r, index in reversed(nodes):
+            x = round(cx + math.cos(math.radians(angle)) * radius)
+            y = round(cy + math.sin(math.radians(angle)) * radius)
+            active = offset == 0
+            pygame.draw.circle(surf, INK if active else BG, (x, y), r)
+            pygame.draw.circle(surf, INK, (x, y), r, 2)
+            self.app_icon(surf, device.registry[index], (x, y), r, BG if active else INK)
+            target = pygame.Rect(x-r, y-r, r*2, r*2)
+            self.add(target, "open" if active else "select", clip=body,
+                     index=index, app_id=device.registry[index].get("id"))
+        hint = self.font(15).render("Swipe to browse · tap to open", True, MUTED)
+        surf.blit(hint, hint.get_rect(midright=(451, 707)))
+
+    def app_icon(self, surf, app, center, radius, color):
+        x, y = center
+        size = radius * 0.48
+        width = max(2, round(radius / 14))
+        module = app.get("module")
+        if app.get("id") == "notes":
+            pygame.draw.rect(surf, color, (x-size, y-size*1.2, size*2, size*2.4), width)
+            for row in (-1, 0, 1):
+                yy = y + row * size * 0.6
+                pygame.draw.line(surf, color, (x-size*0.6, yy), (x+size*0.6, yy), width)
+        elif module == "checklist":
+            for row in (-1, 0, 1):
+                yy = y + row * size * 0.7
+                pygame.draw.rect(surf, color, (x-size, yy-width, width*2, width*2))
+                pygame.draw.line(surf, color, (x-size*0.45, yy), (x+size, yy), width)
+        elif module == "scoreboard":
+            for side in (-1, 1):
+                rect = pygame.Rect(x + side*size*0.6-size*0.4, y-size, size*0.8, size*2)
+                pygame.draw.rect(surf, color, rect, width)
+            pygame.draw.line(surf, color, (x, y-size), (x, y+size), width)
+        elif module == "progress":
+            # Water droplet, matching the simulator's hydration glyph.
+            pygame.draw.polygon(surf, color, [(x, y-size*1.2), (x-size*0.7, y), (x+size*0.7, y)])
+            pygame.draw.circle(surf, color, (x, y+size*0.25), size*0.75)
+        else:
+            for i, height in enumerate((0.7, 1.2, 1.8)):
+                pygame.draw.rect(surf, color, (x-size+i*size*0.7, y+size-height*size, size*0.45, height*size))
 
     def cy(self, content_y, body):
         return body.top + content_y - self.scroll
-
-    def tile(self, surf, rect, app):
-        pygame.draw.rect(surf, CARD, rect, border_radius=16)
-        pygame.draw.rect(surf, TILE_LINE, rect, width=1, border_radius=16)
-        fill, ink = BADGE.get(app.get("module"), BADGE["checklist"])
-        badge = pygame.Rect(rect.x + 14, rect.centery - 18, 36, 36)
-        pygame.draw.rect(surf, fill, badge, border_radius=10)
-        letter = self.font(18, bold=True).render((app.get("title") or "?")[:1].upper(), True, ink)
-        surf.blit(letter, letter.get_rect(center=badge.center))
-        title = self.text(self.font(20, bold=True), app.get("title"), 180, INK)
-        surf.blit(title, title.get_rect(midleft=(badge.right + 10, rect.centery)))
-        detail = self.text(self.font(14), blurb(app), 150, MUTED)
-        surf.blit(detail, detail.get_rect(midright=(rect.right - 14, rect.centery)))
 
     def chips(self, surf, content_y, body):
         gap = 8
@@ -525,9 +566,9 @@ class Screen:
 
     def dock(self, surf, device):
         hot = device.agent == "listening"
-        pygame.draw.rect(surf, (36, 48, 68) if hot else PTT_BG, PTT, border_radius=26)
-        pygame.draw.rect(surf, BLUE if hot else PTT_LINE, PTT, width=1, border_radius=26)
-        color = (215, 228, 255) if hot else INK
+        pygame.draw.rect(surf, INK if hot else BG, PTT, border_radius=26)
+        pygame.draw.rect(surf, INK if hot else MUTED, PTT, width=1, border_radius=26)
+        color = BG if hot else INK
         label = self.font(16, bold=True).render("Release to send" if hot else "Hold to talk", True, color)
         icon_w = 18
         total = icon_w + 8 + label.get_width()
@@ -591,10 +632,10 @@ def post_json(url, payload):
         return json.loads(response.read().decode())
 
 
-def hold_lock():
+def hold_lock(pid_path=PID_PATH):
     global _lock
-    PID_PATH.parent.mkdir(parents=True, exist_ok=True)
-    handle = open(PID_PATH, "a+")
+    pid_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(pid_path, "a+")
     try:
         fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
@@ -610,11 +651,11 @@ def hold_lock():
     _lock = handle
 
 
-def stop_running():
-    if not PID_PATH.exists():
+def stop_running(pid_path=PID_PATH):
+    if not pid_path.exists():
         print("Omni is not running.")
         return
-    text = PID_PATH.read_text().strip()
+    text = pid_path.read_text().strip()
     if not text.isdigit():
         print("Omni is not running.")
         return
@@ -644,6 +685,8 @@ class App:
         if not self.device.restore(store):
             self.device.load_demos()
             self.device.save(store)
+        # Restore saved apps, but always enter through the new logo screen.
+        self.device.go_home()
         self.screen = Screen()
         self.stub = stub
         self.turn = turn if kiosk else "none"
@@ -704,6 +747,17 @@ class App:
         if hit.act == "line":
             self.send(hit.text)
             return
+        if hit.act == "launcher":
+            self.screen.launcher = True
+            return
+        if hit.act == "logo":
+            self.screen.launcher = False
+            return
+        if hit.act == "select":
+            self.screen.selection = hit.index
+            return
+        if hit.act in ("back", "open"):
+            self.screen.launcher = True
         before = (self.device.screen, self.device.app_id)
         self.device.local(hit.act, index=hit.index, amount=hit.amount, app_id=hit.app_id)
         self.device.save(self.store)
@@ -711,7 +765,7 @@ class App:
             self.screen.scroll = 0
 
     def on_down(self, pos):
-        if self.device.agent == "thinking":
+        if self.device.agent == "thinking" or pos is None:
             return
         hit = self.screen.at(pos)
         if hit is not None and hit.act == "talk":
@@ -734,7 +788,8 @@ class App:
         if abs(pos[1] - press["y"]) < 12:
             return
         press["moved"] = True
-        self.screen.scroll = press["scroll"] - (pos[1] - press["y"])
+        if self.device.current() is not None:
+            self.screen.scroll = press["scroll"] - (pos[1] - press["y"])
 
     def on_up(self, pos):
         press = self.press
@@ -746,6 +801,8 @@ class App:
                 self.send(self.draft or TALK_LINE)
             return
         if press["moved"]:
+            if self.device.current() is None and not self.device.proposal and pos is not None:
+                self.screen.step_selection(self.device, 1 if pos[1] < press["y"] else -1)
             return
         hit = self.screen.at(pos) if pos is not None else press.get("hit")
         self.activate(hit)
@@ -773,13 +830,27 @@ class App:
                 self.device.save(self.store)
             elif self.device.screen == "app":
                 self.device.go_home()
+                self.screen.launcher = True
                 self.device.save(self.store)
                 self.screen.scroll = 0
+            elif self.screen.launcher:
+                self.screen.launcher = False
             elif not self.kiosk:
                 return "quit"
             return None
         if ctrl:
             return None
+        if not self.device.proposal and self.device.current() is None and not self.draft:
+            if event.key in (pygame.K_UP, pygame.K_DOWN):
+                self.screen.step_selection(self.device, -1 if event.key == pygame.K_UP else 1)
+                return None
+            if event.key == pygame.K_RETURN:
+                if not self.screen.launcher:
+                    self.screen.launcher = True
+                elif self.device.registry:
+                    index = self.screen.selection % len(self.device.registry)
+                    self.activate(Hit((0, 0, 1, 1), "open", app_id=self.device.registry[index]["id"]))
+                return None
         if event.key == pygame.K_BACKSPACE:
             self.draft = self.draft[:-1]
         elif event.key == pygame.K_RETURN and not ctrl:
@@ -821,6 +892,7 @@ class App:
         icon = omni_mark(64)
         pygame.display.set_icon(icon)
         clock = pygame.time.Clock()
+        active_finger = None
         while True:
             if self.stopping:
                 return 0
@@ -828,12 +900,30 @@ class App:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return 0 if self.stopping or not self.kiosk else 2
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and not getattr(event, "touch", False):
                     self.on_down(phone_point(*event.pos, display.get_size(), self.turn))
-                elif event.type == pygame.MOUSEMOTION and self.press is not None:
+                elif event.type == pygame.MOUSEMOTION and self.press is not None and not getattr(event, "touch", False):
                     self.on_move(phone_point(*event.pos, display.get_size(), self.turn))
-                elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                elif event.type == pygame.MOUSEBUTTONUP and event.button == 1 and not getattr(event, "touch", False):
                     self.on_up(phone_point(*event.pos, display.get_size(), self.turn))
+                elif event.type == pygame.MOUSEWHEEL and not self.device.proposal:
+                    if hasattr(self, "scroll_input"):
+                        self.scroll_input(-event.y)
+                    elif self.device.current() is None:
+                        self.screen.step_selection(self.device, -event.y)
+                    else:
+                        self.screen.scroll -= event.y * 48
+                elif event.type == pygame.FINGERDOWN and active_finger is None:
+                    active_finger = event.finger_id
+                    self.on_down(phone_point(event.x*display.get_width(), event.y*display.get_height(), display.get_size(), self.turn))
+                elif event.type == pygame.FINGERMOTION and event.finger_id == active_finger:
+                    self.on_move(phone_point(event.x*display.get_width(), event.y*display.get_height(), display.get_size(), self.turn))
+                elif event.type == pygame.FINGERUP and event.finger_id == active_finger:
+                    active_finger = None
+                    self.on_up(phone_point(event.x*display.get_width(), event.y*display.get_height(), display.get_size(), self.turn))
+                elif event.type == pygame.WINDOWFOCUSLOST and hasattr(self, "cancel_press"):
+                    active_finger = None
+                    self.cancel_press()
                 elif event.type == pygame.KEYDOWN:
                     mods = event.mod
                     if mods & (pygame.KMOD_CTRL | pygame.KMOD_META):
@@ -844,7 +934,7 @@ class App:
                     self.on_text(event.text)
             self.frame(display)
             pygame.display.flip()
-            clock.tick(30)
+            clock.tick(60)
 
 
 def pi_model():
@@ -859,15 +949,20 @@ def main():
     parser.add_argument("--kiosk", action="store_true", help="Fullscreen on the panel.")
     parser.add_argument("--turn", choices=("right", "left"), default="right")
     parser.add_argument("--stub", default="http://127.0.0.1:8787/v1/turn")
+    parser.add_argument("--sim", action="store_true", help="Use an isolated simulator profile; same UI/input as the Pi.")
+    parser.add_argument("--live", action="store_true", help="Send requests to --stub instead of local demo generation.")
+    parser.add_argument("--store", type=Path, help="Override the registry path (preferences live alongside it).")
     parser.add_argument("--stop", action="store_true", help="Quit a running phone.")
     args = parser.parse_args()
 
+    store = args.store or (Path.home()/".omni"/"simulator"/"registry.json" if args.sim else Path.home()/".omni"/"pi-ui"/"registry.json")
+    pid_path = store.with_name("shell.pid") if args.sim else PID_PATH
     if args.stop:
-        stop_running()
+        stop_running(pid_path)
         return
 
     require_pygame()
-    hold_lock()
+    hold_lock(pid_path)
     model = pi_model()
     if model:
         print(model)
@@ -878,13 +973,15 @@ def main():
 
     pygame.init()
     pygame.font.init()
-    app = App(args.stub, args.turn, args.kiosk)
-    print("Omni phone. Registry at %s" % STORE)
+    from native_ui import NativeApp
+    app = NativeApp(args.stub, args.turn, args.kiosk, store=store, live=args.live)
+    print("Omni UI: shared pygame simulator/Pi. File: %s" % Path(__file__).resolve())
+    print("Omni phone. Registry at %s" % app.store)
     if args.kiosk:
         print("Stays up until Ctrl+Shift+Q, or: python3 firmware/phone.py --stop")
     else:
-        print("Type a request and press Enter. Hold the talk bar to send the milk line.")
-        print("Ctrl+E empties the device. Ctrl+D reloads the demo apps. Escape goes back.")
+        print("Tap the logo, rotate the wheel, and tap an app. Hold the waveform to simulate speech.")
+        print("Type a request and Enter, or use the on-screen keyboard. Escape goes back; Ctrl+Shift+Q quits.")
 
     def handle_stop(signum, frame):
         app.stopping = True

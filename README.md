@@ -11,7 +11,7 @@ People can work in parallel. The shared surface is [`contract/`](contract/). The
 | Contract / modules | [`contract/`](contract/) | Module files and fixtures already describe the demo | Nothing |
 | Device shell (Pi 3) | [`firmware/`](firmware/) | `sh firmware/demo.sh` on the Pi desktop | A board |
 | Board bring-up | [`firmware/bringup/`](firmware/bringup/) | `sh firmware/demo.sh` wires touch, then the phone opens | A board |
-| UI simulator | [`firmware/phone.py`](firmware/phone.py) | `python3 firmware/shell.py` opens the 480×800 window | pygame |
+| UI simulator | [`firmware/phone.py`](firmware/phone.py) | `sh sim/run.sh` opens the 480×800 window | pygame |
 | Cloud agent | [`cloud/`](cloud/) | `stub_server.py` is the offline `/v1/turn`. `try_turn.py` tests the real model | An API key, only for `try_turn.py` |
 
 Claim a lane with a branch named after it: `firmware`, `sim`, `cloud`, `bringup`, `contract`.
@@ -35,10 +35,10 @@ From the repo root, in two terminals:
 
 ```bash
 python3 cloud/stub_server.py
-python3 firmware/shell.py
+sh sim/run.sh
 ```
 
-The phone is a pygame window, 480×800. The stub listens on port 8787 and returns fixtures for "milk", "coffee", "ping pong", and "water". No API key. On a Mac, install the window library once: `python3 -m venv .venv && .venv/bin/pip install pygame-ce`, then run with `.venv/bin/python`. The Pi package is `python3-pygame`.
+The phone is a pygame window, 480×800. The simulator and Pi share the same pygame UI. Defaults are Omni, Settings, Notes, Clock, and Calculator; the built-in generation demo works without a server. Add `--live` to use the stub at port 8787. No API key. On a Mac, install the window library once: `python3 -m venv .venv && .venv/bin/pip install pygame-ce`, then run with `.venv/bin/python`. The Pi package is `python3-pygame`.
 
 ## Demo modules
 

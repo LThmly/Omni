@@ -1,42 +1,32 @@
 # Device shell
 
-The phone that opens on the 5" XPT2046 panel. It paints JSON from `contract/` with pygame. It does not compile generated code. A finger is the input.
+Omni uses one pygame UI on desktop and the Raspberry Pi 3B. The 5" LCD is 480×800 upright, rotated onto the 800×480 glass on the Pi. UI and controller code lives in `native_ui.py`; `phone.py` handles the window, display rotation, touch events, and existing JSON app widgets.
 
-A laptop shows the same phone upright. The Pi turns it 90° so it fills the glass.
+Desktop simulator:
 
-## Run it on a laptop
-
-```bash
-python3 firmware/shell.py
+```sh
+sh sim/run.sh
 ```
 
-The window is 480×800. Type a request and press Enter. Ctrl+E empties the device, Ctrl+D loads the demo apps again, and Escape goes back. pygame comes from `python3-pygame` on the Pi. On a Mac: `python3 -m venv .venv && .venv/bin/pip install pygame-ce`, then `.venv/bin/python firmware/shell.py`.
+On the Pi desktop, or SSH with the desktop environment exported:
 
-## Demo on the Pi
-
-From a terminal on the Pi desktop:
-
-```bash
+```sh
 sh firmware/demo.sh
 ```
 
-The first run writes the XPT2046 touchscreen overlay and the 800×480 mode, then reboots. After you log in, the phone opens on the glass and stays there. A later run skips the reboot and opens it immediately.
+The first run configures the touchscreen and display mode, then reboots. Subsequent runs launch the UI. After desktop login, the installed autostart entry opens it. The graphical desktop must be running. For SSH on Wayland:
 
-What you can press:
+```sh
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+export WAYLAND_DISPLAY=wayland-0
+export SDL_VIDEODRIVER=wayland
+sh firmware/demo.sh
+```
 
-- A row opens that app. On Shopping, a tap checks an item. On Ping pong, `+` and `−` change the score. On Water, `+8 oz` and `+16 oz` move the bar.
-- **List**, **Score**, and **Water** on the home screen send those three demo lines. List and Score and Water each pop a confirm card, or they edit an app that is already there. **Yes, create it** and **Cancel** are fingers, not the network.
-- Hold the talk bar. It sends “Add milk to my shopping list.” The microphone is not connected.
+Tap the main logo to browse the rotating wheel. Drag along its curve to rotate it; release to snap. Tap a neighboring icon to focus it, then tap the large selected icon to open. The corner Omni branding returns home. Back/Escape returns from an app to the wheel, then home. Defaults are Omni, Settings, Notes, Clock, and Calculator. A touchscreen keyboard is available for Notes and request entry.
 
-Quit with Ctrl+Shift+Q, or `python3 firmware/shell.py --stop`. The next login opens the demo again.
+Holding the waveform simulates speech. It uses the entered draft, or the shopping-list demo request if empty. The bars fluctuate while listening; after release the arrows animate during a configurable 10-second delay. The local demo then creates and selects a new app on the wheel. No microphone recording or speech recognition is implemented. Both desktop and Pi use this same demo flow by default. To use the turn stub, start it and launch `python3 firmware/shell.py --kiosk --live`.
 
-## Own this
+Settings persists theme, reduced motion, text size, wait time, and clock format. Device data is `~/.omni/pi-ui/`; desktop simulator data is `~/.omni/simulator/`. The old registry remains intact. Quit with Ctrl+Shift+Q or `python3 firmware/shell.py --stop`. The next desktop login opens the installed demo again.
 
-- `demo.sh` writes the touchscreen overlay, registers login, and opens the phone
-- `phone.py` draws the phone and keeps the fullscreen window up
-- The arrow mark and the Neuropolitical wordmark
-- Push-to-talk is on the phone. Until the microphone is connected, holding it sends the milk line. On a laptop, typed text and Enter send a turn instead
-
-## Mount
-
-Stand the stack in portrait, right edge up. Touch setup, quit keys, and the `--turn left` switch are in [`bringup/`](bringup/).
+Install pygame with `sudo apt install python3-pygame` on the Pi, or install `pygame-ce` into a virtual environment on desktop. See [`sim/README.md`](../sim/README.md) for detailed controls and tests. Mount the display right edge up; `--turn left` supports the opposite orientation. Hardware setup remains in [`bringup/`](bringup/).
