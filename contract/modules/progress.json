@@ -1,0 +1,23 @@
+{
+  "module": "progress",
+  "summary": "A value climbing toward a goal.",
+  "demo_prompt": "Log that I drank 16 ounces of water towards a 64 ounce goal.",
+  "state": {
+    "label": "Water",
+    "unit": "oz",
+    "value": 16,
+    "goal": 64,
+    "step": 8
+  },
+  "actions": {
+    "add": "Increase value by args.amount, or by step when amount is omitted. Cap at goal."
+  },
+  "layout": {
+    "width": 400,
+    "height": 300,
+    "margin": 12,
+    "header_h": 36,
+    "bar_h": 24,
+    "accent": "The filled part of the bar is red. The track is a black outline."
+  }
+}

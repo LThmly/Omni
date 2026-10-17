@@ -1,0 +1,14 @@
+{
+  "op": "propose",
+  "say": "You don't have a shopping list yet. Make one?",
+  "confirm": true,
+  "app": {
+    "id": "shopping",
+    "module": "checklist",
+    "title": "Shopping",
+    "state": {
+      "cursor": 0,
+      "items": [{ "label": "Milk", "checked": false }]
+    }
+  }
+}

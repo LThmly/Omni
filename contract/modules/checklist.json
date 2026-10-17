@@ -1,0 +1,23 @@
+{
+  "module": "checklist",
+  "summary": "A titled list of rows the wheel can check off.",
+  "demo_prompt": "Add milk to my shopping list.",
+  "state": {
+    "cursor": 0,
+    "items": [{ "label": "Milk", "checked": false }]
+  },
+  "actions": {
+    "scroll": "Device only. Move cursor by args.dir, +1 or -1, and clamp.",
+    "toggle": "Flip items[cursor].checked. args may be empty.",
+    "append": "Push { label: args.label, checked: false }.",
+    "remove": "Remove items[cursor]."
+  },
+  "layout": {
+    "width": 400,
+    "height": 300,
+    "margin": 12,
+    "header_h": 36,
+    "row_h": 32,
+    "accent": "The cursor row is red. Other rows are black on white."
+  }
+}

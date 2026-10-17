@@ -1,0 +1,12 @@
+{
+  "id": "pingpong",
+  "module": "scoreboard",
+  "title": "Ping pong",
+  "state": {
+    "cursor": 0,
+    "sides": [
+      { "name": "Me", "score": 0 },
+      { "name": "Alex", "score": 0 }
+    ]
+  }
+}

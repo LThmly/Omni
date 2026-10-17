@@ -1,0 +1,12 @@
+{
+  "id": "water",
+  "module": "progress",
+  "title": "Water",
+  "state": {
+    "label": "Water",
+    "unit": "oz",
+    "value": 16,
+    "goal": 64,
+    "step": 8
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "shopping",
+  "module": "checklist",
+  "title": "Shopping",
+  "state": {
+    "cursor": 0,
+    "items": [
+      { "label": "Milk", "checked": false },
+      { "label": "Bread", "checked": false }
+    ]
+  }
+}

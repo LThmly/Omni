@@ -1,0 +1,17 @@
+{
+  "op": "propose",
+  "say": "Want a water log toward 64 ounces?",
+  "confirm": true,
+  "app": {
+    "id": "water",
+    "module": "progress",
+    "title": "Water",
+    "state": {
+      "label": "Water",
+      "unit": "oz",
+      "value": 16,
+      "goal": 64,
+      "step": 8
+    }
+  }
+}

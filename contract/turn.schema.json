@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "omni.turn",
+  "title": "POST /v1/turn response",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "say", "confirm", "app"],
+      "properties": {
+        "op": { "const": "propose" },
+        "say": { "type": "string" },
+        "confirm": { "type": "boolean" },
+        "app": { "$ref": "app.schema.json" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "app_id", "say", "actions"],
+      "properties": {
+        "op": { "const": "mutate" },
+        "app_id": { "type": "string" },
+        "say": { "type": "string" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action", "args"],
+            "properties": {
+              "action": {
+                "enum": ["toggle", "append", "remove", "inc", "dec", "add"]
+              },
+              "args": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "say"],
+      "properties": {
+        "op": { "const": "say" },
+        "say": { "type": "string" }
+      }
+    }
+  ]
+}

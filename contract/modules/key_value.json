@@ -1,0 +1,20 @@
+{
+  "module": "key_value",
+  "summary": "Read-only rows. Spare for the demo.",
+  "demo_prompt": "",
+  "state": {
+    "cursor": 0,
+    "rows": [{ "label": "Next", "value": "Standup" }]
+  },
+  "actions": {
+    "scroll": "Device only. Move cursor between rows."
+  },
+  "layout": {
+    "width": 400,
+    "height": 300,
+    "margin": 12,
+    "header_h": 36,
+    "row_h": 32,
+    "accent": "The cursor row is red."
+  }
+}

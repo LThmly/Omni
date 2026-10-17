@@ -1,0 +1,17 @@
+{
+  "op": "propose",
+  "say": "Want a scoreboard for you and Alex?",
+  "confirm": true,
+  "app": {
+    "id": "pingpong",
+    "module": "scoreboard",
+    "title": "Ping pong",
+    "state": {
+      "cursor": 0,
+      "sides": [
+        { "name": "Me", "score": 0 },
+        { "name": "Alex", "score": 0 }
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "module": "scoreboard",
+  "summary": "Two named scores.",
+  "demo_prompt": "Keep score for ping pong between me and Alex.",
+  "state": {
+    "cursor": 0,
+    "sides": [
+      { "name": "Me", "score": 0 },
+      { "name": "Alex", "score": 0 }
+    ]
+  },
+  "actions": {
+    "scroll": "Device only. Move cursor between sides.",
+    "inc": "Add 1 to sides[cursor].score.",
+    "dec": "Subtract 1 from sides[cursor].score, floor at 0."
+  },
+  "layout": {
+    "width": 400,
+    "height": 300,
+    "margin": 12,
+    "header_h": 36,
+    "row_h": 72,
+    "accent": "The cursor side's name is red."
+  }
+}

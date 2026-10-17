@@ -1,0 +1,9 @@
+{
+  "op": "mutate",
+  "app_id": "shopping",
+  "say": "Added coffee and bread.",
+  "actions": [
+    { "action": "append", "args": { "label": "Coffee" } },
+    { "action": "append", "args": { "label": "Bread" } }
+  ]
+}
