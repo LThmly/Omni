@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Omni panel</title>
+  <style>
+    body { margin: 24px; font: 14px/1.4 ui-sans-serif, system-ui, sans-serif; background: #1c1c1c; color: #ddd; }
+    canvas { width: 800px; height: 600px; image-rendering: pixelated; background: #fff; }
+    p { max-width: 800px; }
+  </style>
+</head>
+<body>
+  <canvas id="panel" width="400" height="300"></canvas>
+  <p>400×300 fixture preview. Keys and the refresh lock belong in this page. Specs are in <code>contract/modules/</code>.</p>
+  <script>
+    const canvas = document.getElementById("panel");
+    const ctx = canvas.getContext("2d");
+    const ink = "#000";
+    const paper = "#fff";
+    const accent = "#c40000";
+
+    function drawChecklist(app) {
+      const items = app.state.items || [];
+      const cursor = app.state.cursor || 0;
+      ctx.fillStyle = paper;
+      ctx.fillRect(0, 0, 400, 300);
+      ctx.fillStyle = ink;
+      ctx.font = "20px sans-serif";
+      ctx.fillText(app.title, 12, 28);
+      ctx.font = "16px sans-serif";
+      items.forEach((item, i) => {
+        const y = 36 + i * 32;
+        ctx.fillStyle = i === cursor ? accent : ink;
+        const mark = item.checked ? "[x]" : "[ ]";
+        ctx.fillText(mark + "  " + item.label, 12, y + 22);
+      });
+    }
+
+    fetch("/contract/fixtures/apps/shopping.json")
+      .then((r) => r.json())
+      .then(drawChecklist)
+      .catch(() => {
+        ctx.fillStyle = paper;
+        ctx.fillRect(0, 0, 400, 300);
+        ctx.fillStyle = ink;
+        ctx.font = "16px sans-serif";
+        ctx.fillText("Serve the repo root on :8080", 12, 28);
+      });
+  </script>
+</body>
+</html>
