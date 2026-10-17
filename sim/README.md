@@ -15,7 +15,7 @@ python3 -m venv .venv
 sh sim/run.sh
 ```
 
-On the Pi, `python3-pygame` from apt also works. The simulator uses `firmware/native_ui.py`, the same renderer, controller, and app logic as `python3 firmware/shell.py --kiosk`. A mouse press/drag/release follows the same path as a finger on the Pi. The earlier browser studies are design references; edit the pygame files to change the real UI.
+On the Pi, `python3-pygame` from apt also works. The simulator uses `firmware/native_ui.py`, the same renderer, controller, and app logic as `python3 firmware/shell.py --kiosk`. A mouse press/drag/release follows the same path as a finger on the Pi. Edit the pygame files to change the UI.
 
 - Tap the logo to open the wheel; drag around its curve, scroll, or use Up/Down to select. Tap the selected app or press Enter to open it. Tap a neighboring icon to rotate it into focus.
 - Tap the corner Omni mark to go home. Back/Escape returns from an app to the wheel, then home. Ctrl+Shift+Q quits.

@@ -18,7 +18,7 @@ This folder is the API between firmware, the simulator, the cloud, and the model
 ## Rules
 
 - Module names are `checklist`, `scoreboard`, `progress`, and `key_value`.
-- The app canvas is 480×800, portrait. Layout numbers are CSS pixels, origin top-left. Color lives in `sim/shell.css`.
+- The app canvas is 480×800, portrait. Layout numbers are pixels, origin top-left. Color lives in the pygame UI.
 - `scroll` is device-only. The model does not send it.
 - A `mutate` carries an `actions` list so one utterance can append coffee and bread, and the panel paints once.
 - `propose.app` is a complete app. The shell stores it when the user confirms.

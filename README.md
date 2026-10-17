@@ -12,7 +12,7 @@ People can work in parallel. The shared surface is [`contract/`](contract/). The
 | Device shell (Pi 3) | [`firmware/`](firmware/) | `sh firmware/demo.sh` on the Pi desktop | A board |
 | Board bring-up | [`firmware/bringup/`](firmware/bringup/) | `sh firmware/demo.sh` wires touch, then the phone opens | A board |
 | UI simulator | [`firmware/phone.py`](firmware/phone.py) | `sh sim/run.sh` opens the 480×800 window | pygame |
-| Cloud agent | [`cloud/`](cloud/) | `stub_server.py` is the offline `/v1/turn`. `try_turn.py` tests the real model | An API key, only for `try_turn.py` |
+| Cloud agent | [`cloud/`](cloud/) | `try_turn.py` calls Gemini and returns one turn. `stub_server.py` is the offline stand-in | An API key, for the real call |
 
 Claim a lane with a branch named after it: `firmware`, `sim`, `cloud`, `bringup`, `contract`.
 
