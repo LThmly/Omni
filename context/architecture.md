@@ -2,32 +2,38 @@
 
 ## Decision
 
-The device runtime runs standalone on a **Raspberry Pi 4** driving a **Kuman 3.5" 480×320 HDMI touchscreen**.
+The device runtime runs on a **Raspberry Pi 3 Model B** driving a **5" 800×480 HDMI LCD** with an **XPT2046** touchscreen.
 
-The core system architecture remains declarative: the model does not generate arbitrary executable code (no raw C++, Python, or unrestricted scripts synthesized live). The model outputs structured JSON documents adhering to [`contract/`](../contract/), selecting pre-built UI modules and populating their state fields.
+The shell runs as one fullscreen phone on Raspberry Pi OS. `firmware/install.sh` opens it at login and keeps it there until you quit. The app is a 480×800 portrait page. The panel is 800×480, so the kiosk turns the page 90° and the stack stands with its right edge up. A finger on the glass is the input: tap, drag, and hold, the same gestures as a phone.
 
-Three runtimes share that contract document:
+A bare-metal image would have to reimplement HDMI timing, the SPI touchscreen, and Wi-Fi before any UI could appear. The product work is the shell, so the shell runs on Raspberry Pi OS.
+
+The model does not generate arbitrary executable code. It outputs structured JSON from [`contract/`](../contract/), selecting pre-built UI modules and filling their state.
+
+Three runtimes share that contract:
 
 | Runtime | Job | When it runs |
 | :--- | :--- | :--- |
-| **Pi 4 Shell** | Fullscreen 480×320 HDMI GUI, touch event handling, USB microphone capture, local state storage | Live demo on stage |
-| **Browser simulator** | Renders the exact same JSON at 480×320; simulates touch taps and swipes | Development without hardware |
-| **Cloud agent** | Speech-to-text, intent routing, structured LLM turn response (`propose`, `mutate`, `say`) | Whenever the user speaks |
+| **Pi 3 shell** | Fullscreen portrait phone, finger input, local state | On the panel |
+| **Browser simulator** | The same phone, upright, at 480×800 | Menu work without the board |
+| **Cloud agent** | Speech-to-text and one `propose`, `mutate`, or `say` | Whenever the user speaks |
+
+The simulator is that phone, shown upright. On the Pi the same page is turned to fill the glass.
 
 ---
 
 ## Why the model does not generate arbitrary code
 
-Even though a Raspberry Pi 4 has full Linux and a Python/C++ toolchain, allowing an LLM to generate arbitrary executable code live on stage introduces severe latency, unpredictable dependencies, UI layout breakage, and security risks.
+The Pi can run whatever we install, and letting the model emit live Python or JavaScript would mean latency, missing dependencies, broken layout, and a device that can be talked into running the wrong thing.
 
-Instead, the device ships with a robust, pre-styled **Module Catalog**. The LLM simply returns clean, structured data defining which module to instantiate and what data to display.
+The device ships with a module catalog. The model returns which module to show and what data to put in it.
 
 ---
 
 ## What crosses the network
 
-One unified HTTPS endpoint: `POST /v1/turn`.
-The payload carries either audio (WAV base64 from the USB mic) or plain text (from the dev simulator), along with the current device app registry:
+One endpoint: `POST /v1/turn`.
+The body is audio (`wav_base64`) or plain text from the simulator, plus the apps already on the device:
 
 ```json
 {
@@ -37,66 +43,57 @@ The payload carries either audio (WAV base64 from the USB mic) or plain text (fr
 }
 ```
 
-The cloud agent responds with one of three operations defined in [`contract/turn.schema.json`](../contract/turn.schema.json):
-- `propose` — Proposes a new app (module name, title, initial state). The shell shows an on-screen confirmation card (`[ Yes, create ]` / `[ Cancel ]`).
-- `mutate` — Applies an array of operations to an existing app (`toggle`, `append`, `inc`, `dec`, `add`).
-- `say` — A conversational line displayed in the Agent Bar when no app state changes.
+The response is one of three operations in [`contract/turn.schema.json`](../contract/turn.schema.json):
 
-If the model returns an invalid payload, the server retries once, then returns a fallback `say` message. The device shell never crashes from model formatting anomalies.
+- `propose` — a new app. The shell shows `[ Yes, create it ]` / `[ Cancel ]`.
+- `mutate` — actions on an app that already exists (`toggle`, `append`, `inc`, `dec`, `add`).
+- `say` — a line in the agent bar when no app changes.
+
+An invalid payload is retried once on the server, then replaced with a fallback `say`. The shell does not crash on a bad model reply.
 
 ---
 
 ## What stays on the device
 
-**Touch interactions never wait on the network:**
-* Tapping a checkbox toggles it immediately (0ms latency).
-* Tapping `+` or `-` increments or decrements scores instantly.
-* Swiping or dragging smoothly scrolls the viewport.
-* Local mutations update the on-disk JSON registry (`~/.omni/registry.json`) and refresh the screen at 60 FPS.
+Touch does not wait on the network:
 
-Voice intents still go to the cloud for natural language parsing, but return as the exact same atomic operations (`toggle`, `append`, etc.).
+- Tapping a row toggles it.
+- Tapping `+` or `−` changes a score.
+- Dragging scrolls a list.
+- The registry is the apps on the device. The simulator keeps a copy in the browser. The Pi copy is the next store to add (`~/.omni/registry.json`).
 
----
-
-## The Display & UI Experience
-
-With the shift to the **Kuman 3.5" 480×320 60Hz HDMI Display**:
-* **High Refresh Rate:** Video updates render at **60 FPS** with zero E-Ink refresh flashing or multi-second latency.
-* **Rich Color Palette:** Vibrant modern aesthetics (dark mode, crisp typography, colored status badges) replace the 3-color E-Ink restrictions.
-* **Animated Agent States:** The Omni Agent Bar dynamically transitions between states:
-  * `Idle`: Minimal unobtrusive status dot.
-  * `Listening`: Active audio waveform / pulse reacting to voice.
-  * `Thinking`: Subtle animated spinner or pulse.
-  * `Responding`: Clean speech bubble with agent text.
+Voice still goes to the cloud and comes back as the same actions.
 
 ---
 
-## Module Catalog
+## The display
 
-The hackathon catalog covers the three core showcase scenarios:
+The panel is an 800×480 HDMI LCD. Touch is the XPT2046 on the GPIO header. Once Raspberry Pi OS loads the `ads7846` overlay, a finger is a normal pointer and the phone does not carry its own touch driver.
 
-| Module | UI Elements | Local Touch Interactions | Demo Line |
+The product UI is a portrait phone, 480×800: the arrow mark, the Neuropolitical “omni” wordmark, an agent line, a vertical list of apps, and push-to-talk at the bottom. Targets are large enough for a finger. The kiosk turns that phone onto the landscape glass. The simulator shows the same phone upright, and the mouse stands in for the finger.
+
+---
+
+## Module catalog
+
+| Module | UI | Local touch | Demo line |
 | :--- | :--- | :--- | :--- |
-| `checklist` | Title, scrollable list of rows, check boxes | **Tap row:** toggle check<br>**Swipe:** scroll list | *"Add milk to my shopping list."* |
-| `scoreboard` | Two player names, large numeric scores | **Tap `+` / `-`:** increment/decrement | *"Keep score for ping pong between me and Alex."* |
-| `progress` | Metric label, current value, target, progress bar | **Tap quick-add buttons:** `+8 oz`, `+16 oz` | *"Log 16 ounces toward 64."* |
-| `key_value` | Read-only styled cards / rows | **Swipe:** scroll through attributes | Spare / fallback scenario |
+| `checklist` | Title and rows | Tap a row to toggle. Drag to scroll | *"Add milk to my shopping list."* |
+| `scoreboard` | Two names and scores | Tap `+` / `−` | *"Keep score for ping pong between me and Alex."* |
+| `progress` | Value, goal, bar, quick add | Tap `+8 oz` / `+16 oz` | *"Log 16 ounces toward 64."* |
+| `key_value` | Label / value rows | Tap to focus. Drag to scroll | Spare |
 
 ---
 
-## Touchscreen Interaction Model
+## Touch
 
-1. **Touch Navigation:** Tapping selects cards, buttons, or checkboxes; finger drag scrolls long lists.
-2. **Push-to-Talk (PTT):** A persistent microphone action bar is rendered at the bottom of the screen. 
-   * **Touch & Hold:** Starts audio capture from the USB microphone.
-   * **Release:** Finalizes WAV audio and dispatches `POST /v1/turn`.
-3. **App Genesis Confirmation:** When the cloud returns `propose`, the screen displays a modal card:
-   * Tapping **`[ Yes, create it ]`** commits the app to the local registry and transitions into it.
-   * Tapping **`[ Cancel ]`** dismisses the proposal.
+1. A finger tap selects a card, a row, or a button. A drag scrolls. Nothing on screen expects a keyboard.
+2. Push-to-talk is the bar at the bottom of the phone. Hold starts a turn. Release sends it. The simulator sends the text box. The microphone path is not wired yet.
+3. On `propose`, a finger on `[ Yes, create it ]` stores the app and opens it. `[ Cancel ]` dismisses the card. Neither tap calls the model again.
 
 ---
 
 ## Cut line
 
-* **In scope:** Raspberry Pi 4 shell (Chromium kiosk or Python GUI), Kuman 3.5" HDMI touch driver, USB microphone recording, 60 FPS touch interactions, cloud turn endpoint, module catalog.
-* **Out of scope:** On-device local LLM execution, custom PCB fabrication, arbitrary code generation.
+* **In scope:** Pi 3 Model B phone on Raspberry Pi OS, XPT2046 touch, login autostart, the browser simulator, cloud turn endpoint, module catalog.
+* **Out of scope:** A bare-metal image, an on-device LLM, custom PCB, arbitrary code generation.

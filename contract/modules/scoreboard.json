@@ -15,11 +15,11 @@
     "dec": "Subtract 1 from sides[cursor].score, floor at 0."
   },
   "layout": {
-    "width": 400,
-    "height": 300,
-    "margin": 12,
-    "header_h": 36,
-    "row_h": 72,
-    "accent": "The cursor side's name is red."
+    "width": 480,
+    "height": 800,
+    "margin": 18,
+    "header_h": 48,
+    "row_h": 210,
+    "accent": "The focused side uses the accent color."
   }
 }

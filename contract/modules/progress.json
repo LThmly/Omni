@@ -13,11 +13,11 @@
     "add": "Increase value by args.amount, or by step when amount is omitted. Cap at goal."
   },
   "layout": {
-    "width": 400,
-    "height": 300,
-    "margin": 12,
-    "header_h": 36,
-    "bar_h": 24,
-    "accent": "The filled part of the bar is red. The track is a black outline."
+    "width": 480,
+    "height": 800,
+    "margin": 18,
+    "header_h": 48,
+    "bar_h": 16,
+    "accent": "The filled part of the bar uses the progress color."
   }
 }

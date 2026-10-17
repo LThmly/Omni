@@ -10,11 +10,11 @@
     "scroll": "Device only. Move cursor between rows."
   },
   "layout": {
-    "width": 400,
-    "height": 300,
-    "margin": 12,
-    "header_h": 36,
-    "row_h": 32,
-    "accent": "The cursor row is red."
+    "width": 480,
+    "height": 800,
+    "margin": 18,
+    "header_h": 48,
+    "row_h": 56,
+    "accent": "The focused row uses the accent color."
   }
 }

@@ -1,6 +1,6 @@
 {
   "module": "checklist",
-  "summary": "A titled list of rows the wheel can check off.",
+  "summary": "A titled list of rows. Tap a row to check it off.",
   "demo_prompt": "Add milk to my shopping list.",
   "state": {
     "cursor": 0,
@@ -13,11 +13,11 @@
     "remove": "Remove items[cursor]."
   },
   "layout": {
-    "width": 400,
-    "height": 300,
-    "margin": 12,
-    "header_h": 36,
-    "row_h": 32,
-    "accent": "The cursor row is red. Other rows are black on white."
+    "width": 480,
+    "height": 800,
+    "margin": 18,
+    "header_h": 48,
+    "row_h": 56,
+    "accent": "The focused row uses the accent color."
   }
 }

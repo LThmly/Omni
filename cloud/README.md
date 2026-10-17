@@ -8,7 +8,7 @@
 python3 cloud/stub_server.py
 ```
 
-Port 8787. It matches keywords and returns files in `contract/fixtures/turns/`. The simulator uses this. The board calls the model itself.
+Port 8787. It matches keywords and returns files in `contract/fixtures/turns/`. The simulator and the Pi shell post here.
 
 | Text contains | Registry | Response |
 | :--- | :--- | :--- |
@@ -35,6 +35,6 @@ python3 cloud/try_turn.py "Add milk to my shopping list."
 python3 cloud/try_turn.py "Add coffee" --registry contract/fixtures/registry.json
 ```
 
-The schema root is `{"turn": ...}`. The script prints the inner object, which matches `contract/turn.schema.json`. `firmware/src/ai.cpp` sends the same request from the board. Its key is the untracked `firmware/src/gemini_key.h`.
+The schema root is `{"turn": ...}`. The script prints the inner object, which matches `contract/turn.schema.json`. The shell posts to `/v1/turn` and does not call the model itself.
 
 Speech-to-text runs here. The device will send `wav_base64`. The stub ignores audio and reads `text`.

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Omni
+Comment=Portrait Omni phone. firmware/install.sh writes the real copy into the Pi session.
+Exec=python3 firmware/shell.py --kiosk
+Terminal=false
+Categories=Utility;

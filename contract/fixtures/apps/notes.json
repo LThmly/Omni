@@ -1,0 +1,12 @@
+{
+  "id": "notes",
+  "module": "key_value",
+  "title": "Notes",
+  "state": {
+    "cursor": 0,
+    "rows": [
+      { "label": "Next", "value": "Standup" },
+      { "label": "Room", "value": "B" }
+    ]
+  }
+}

@@ -1,30 +1,52 @@
-# Firmware
+# Device shell
 
-The shell that ships on the XIAO ESP32-S3 Plus. It paints JSON from `contract/`. It does not compile generated code.
+The phone that opens on the 5" XPT2046 panel. It paints JSON from `contract/`. It does not compile generated code. A finger is the input.
 
-Build with PlatformIO from this folder:
+The page lives in [`sim/`](../sim/). This folder is how that page gets onto the Pi and stays there. A laptop shows the same phone upright. The Pi turns it 90° so it fills the glass.
+
+## Run it on a laptop
 
 ```bash
-pio run -t upload
-pio device monitor
+python3 firmware/shell.py
 ```
 
-`src/main.cpp` prints the boot test, then `src/eink.cpp` copies the simulator's agent home pixels onto the 6382. Those pixels live in `src/sim_home.h`. It prints `eink: refresh` with how long the panel stayed busy. Expect about 10–15 seconds. To put a different sim screen on the board, set the waveform to Instant, download the PNG, and run `python3 sim/pack_frame.py that.png`. After that, `src/wifi_link.cpp` joins the network. The `ufdevice` name and password are in `src/wifi_link.h`. `src/ai.cpp` is the Vertex client for a later shell call: `aiAsk(text, registryJson, turnJson)` returns the inner propose, mutate, or say object. The key is `GEMINI_API_KEY` in `src/gemini_key.h`, copied from the repo-root `.env`. That header stays untracked. Boot does not call the model.
+Open `http://127.0.0.1:8080/sim/`.
+
+## Leave it running on the Pi
+
+The OS is already on the board. There is no separate image to flash. Once, on the Pi:
+
+```bash
+python3 firmware/install.sh
+```
+
+Log out and back in. The phone opens over the desktop and stays up. If the window closes, it opens again.
+
+Quit with Ctrl+Shift+Q, or:
+
+```bash
+python3 firmware/shell.py --stop
+```
+
+To try it before installing:
+
+```bash
+python3 firmware/shell.py --kiosk
+```
+
+That needs Chromium (`sudo apt install chromium`). The turn stub is separate, on the same machine:
+
+```bash
+python3 cloud/stub_server.py
+```
 
 ## Own this
 
-- Display driver for the Adafruit 6382 (SSD1683, 400×300, black / white / red) on the 4224 Friend. `src/eink.cpp` is the first paint
-- Thumbwheel actions from `contract/modules/`
-- LittleFS store for the registry
-- `aiAsk` in `src/ai.cpp`. Send `text` until the mic path exists
-- One paint per result. Input can queue while the panel is busy
+- `install.sh` registers the app with the Pi desktop session
+- `shell.py` serves the phone and keeps the fullscreen window up
+- The portrait UI in `sim/shell.css` and `sim/shell.js`, including the arrow mark and Neuropolitical wordmark
+- Push-to-talk is on the phone. The simulator sends the text box. Microphone capture is the next piece of device work
 
-## Leave to bring-up
+## Mount
 
-Pin proofs and the measured refresh time live in [`bringup/`](bringup/). Copy a working display init into the shell once a full red/black/white frame has been timed.
-
-## Pins
-
-Use the pad names in [`context/hardware.md`](../context/hardware.md). `D8` is GPIO7.
-
-Board settings in `platformio.ini` assume the Plus: 16MB flash and OPI PSRAM. If the first upload fails or PSRAM reports 0, that file is the place to fix it.
+Stand the stack in portrait, right edge up. Touch setup, quit keys, and the `--turn left` switch are in [`bringup/`](bringup/).

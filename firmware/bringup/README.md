@@ -1,17 +1,25 @@
-# Board bring-up
+# On the Pi
 
-Prove the parts, then hand a known-good init to the shell. Keep sketches in this folder so they stay out of `src/main.cpp`.
+The panel is a 5" 800×480 HDMI LCD. Touch is the XPT2046 on the GPIO header. Picture and touch are set up once, then the phone opens at every login. Pin names and the exact lines are in [`context/hardware.md`](../../context/hardware.md).
 
-Do these in order. Stop on the first one that fails.
+1. Seat the display on the 40-pin header and connect HDMI to the Pi’s full-size HDMI port.
+2. In `/boot/firmware/config.txt`, add the `ads7846` overlay from the hardware notes. That is the touchscreen.
+3. Append `video=HDMI-A-1:800x480M@60` to the single line in `/boot/firmware/cmdline.txt`.
+4. Reboot. The desktop should fill the glass, and a finger should move the pointer. If a sideways drag moves the pointer vertically, set `swapxy=1` in the overlay and reboot. Do not set `display_rotate`.
+5. From the repo:
 
-1. **Boot.** Flash `firmware/` and read `omni shell boot` on USB serial.
-2. **Display.** Full-frame bars: white, black, red. Record how many seconds `BUSY` stays high. The plan assumes 10–15 seconds for this tri-color glass. Write the number you measure at the top of this file.
-3. **Wheel.** Log up, down, and center on `D4`, `D3`, and `D19`. Inputs are active-low to ground.
-4. **Mic.** Record one second of I2S from `D7` / `D6` / `D5` and confirm the samples are not stuck at zero. Leave logs on USB. Those pads are the default UART.
-5. **Wi-Fi.** Join a phone hotspot and POST `contract/fixtures/requests/text-milk.json` to the stub. Print the JSON body.
+   ```bash
+   python3 firmware/install.sh
+   ```
 
-Pins and the strapping-pin caution (reset on `D2`, MOSI on `D10`) are in [`context/hardware.md`](../../context/hardware.md).
+   Log out and back in, or reboot. The phone opens over the desktop and stays there. Closing the window opens it again.
 
-## Measured refresh
+Stand the stack so the right edge of the landscape picture is up. The app is a 480×800 phone turned onto the glass. If it comes up upside down, change `--kiosk` to `--kiosk --turn left` in `~/.config/autostart/omni.desktop` and `~/.config/labwc/autostart`, then log in again.
 
-_Not measured yet._
+Quit with Ctrl+Shift+Q, or from a shell:
+
+```bash
+python3 firmware/shell.py --stop
+```
+
+The next login opens it again.

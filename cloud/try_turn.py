@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = json.loads((ROOT / "contract" / "turn.strict.json").read_text())
 
-SYSTEM = """You fill one Omni turn for a pocket e-ink device.
+SYSTEM = """You fill one Omni turn for a portrait phone.
 
 Modules already on the device are listed in registry. Each has an id.
 checklist: items with label and checked. scoreboard: two sides with name and score.
