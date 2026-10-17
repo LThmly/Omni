@@ -6,3 +6,6 @@
 __pycache__/
 *.pyc
 node_modules/
+
+# Downloaded offline speech models
+sim/models/

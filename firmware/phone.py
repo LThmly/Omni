@@ -1074,6 +1074,10 @@ def main():
     parser.add_argument("--sim", action="store_true", help="Use an isolated simulator profile; same UI/input as the Pi.")
     parser.add_argument("--live", action="store_true", help="Send requests to --stub instead of local demo generation.")
     parser.add_argument("--store", type=Path, help="Override the registry path (preferences live alongside it).")
+    parser.add_argument("--speech", choices=("vosk", "demo"), help="Microphone ASR (default in simulator), or scripted demo (default on Pi).")
+    parser.add_argument("--model", type=Path, help="Path to an unpacked Vosk model.")
+    parser.add_argument("--audio-device", help="Input device index or name; defaults to the system microphone.")
+    parser.add_argument("--list-audio-devices", action="store_true", help="List audio devices without opening the UI.")
     parser.add_argument("--stop", action="store_true", help="Quit a running phone.")
     args = parser.parse_args()
 
@@ -1081,6 +1085,14 @@ def main():
     pid_path = store.with_name("shell.pid") if args.sim else PID_PATH
     if args.stop:
         stop_running(pid_path)
+        return
+
+    if args.list_audio_devices:
+        try:
+            import sounddevice
+            print(sounddevice.query_devices())
+        except (ImportError, OSError) as error:
+            parser.error(f"Microphone support unavailable: {error}; install sim/requirements.txt and PortAudio")
         return
 
     require_pygame()
@@ -1096,13 +1108,23 @@ def main():
     pygame.init()
     pygame.font.init()
     from native_ui import NativeApp
-    app = NativeApp(args.stub, args.turn, args.kiosk, store=store, live=args.live)
+    speech = None
+    speech_mode = args.speech or ("vosk" if args.sim else "demo")
+    if speech_mode == "vosk":
+        try:
+            from speech import VoskSpeech, DEFAULT_MODEL
+            audio_device = int(args.audio_device) if args.audio_device and args.audio_device.isdigit() else args.audio_device
+            speech = VoskSpeech(args.model or DEFAULT_MODEL, device=audio_device)
+        except (ImportError, OSError, RuntimeError) as error:
+            parser.error(f"Could not start Vosk: {error}. See sim/README.md; --speech demo uses the scripted preview.")
+    app = NativeApp(args.stub, args.turn, args.kiosk, store=store, live=args.live, speech=speech)
     print("Omni UI: shared pygame simulator/Pi. File: %s" % Path(__file__).resolve())
     print("Omni phone. Registry at %s" % app.store)
     if args.kiosk:
         print("Stays up until Ctrl+Shift+Q, or: python3 firmware/phone.py --stop")
     else:
-        print("Tap the logo, rotate the wheel, and tap an app. Hold the waveform to simulate speech.")
+        print("Tap the logo, rotate the wheel, and tap an app.")
+        print("Hold the waveform and speak into your microphone; release to send." if speech else "Hold the waveform to simulate speech.")
         print("Type a request and Enter, or use the on-screen keyboard. Escape goes back; Ctrl+Shift+Q quits.")
 
     def handle_stop(signum, frame):
@@ -1110,8 +1132,11 @@ def main():
 
     signal.signal(signal.SIGTERM, handle_stop)
     signal.signal(signal.SIGINT, handle_stop)
-    code = app.run()
-    pygame.quit()
+    try:
+        code = app.run()
+    finally:
+        app.close()
+        pygame.quit()
     sys.exit(code)
 
 
