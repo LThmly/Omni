@@ -103,6 +103,12 @@ def launch_browser(url):
         "--disable-session-crashed-bubble",
         "--check-for-update-interval=31536000",
         "--autoplay-policy=no-user-gesture-required",
+        "--touch-events=enabled",
+        "--enable-touch-drag-drop",
+        "--disable-pinch",
+        "--overscroll-history-navigation=0",
+        "--pull-to-refresh=0",
+        "--top-chrome-touch-ui=disabled",
     ]
     if os.environ.get("WAYLAND_DISPLAY"):
         cmd.append("--ozone-platform=wayland")

@@ -6,6 +6,27 @@ The panel is a 5" 800×480 HDMI LCD. Touch is the XPT2046 on the GPIO header. Pi
 2. In `/boot/firmware/config.txt`, add the `ads7846` overlay from the hardware notes. That is the touchscreen.
 3. Append `video=HDMI-A-1:800x480M@60` to the single line in `/boot/firmware/cmdline.txt`.
 4. Reboot. The desktop should fill the glass, and a finger should move the pointer. If a sideways drag moves the pointer vertically, set `swapxy=1` in the overlay and reboot. Do not set `display_rotate`.
+
+## Touch Diagnostics & Bringup
+
+Before launching the full shell, verify the touchscreen driver, axis alignment, and calibration:
+
+- **Configuration & Device Check:**
+  ```bash
+  python3 firmware/bringup/test_display_touch.py --check
+  ```
+- **Visual Touch Calibration Test (Fullscreen GUI):**
+  ```bash
+  python3 firmware/bringup/test_display_touch.py
+  ```
+  Tap the 5 targets (4 corners + center) to verify coordinate scaling and check for axis inversion. Press `c` to clear, `q` or `ESC` to quit.
+- **CLI Event Monitor (Terminal):**
+  ```bash
+  python3 firmware/bringup/test_display_touch.py --cli
+  ```
+- **Browser Touch Test:**
+  Open `firmware/bringup/test_screen.html` in Chromium to test browser pointer events, touch latency, and rotation.
+
 5. From the repo:
 
    ```bash

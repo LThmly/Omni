@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Omni - Touchscreen Diagnostics & Bringup</title>
+  <style>
+    :root {
+      --bg: #090b10;
+      --surface: #121622;
+      --surface-border: #1f273b;
+      --accent: #4e8cff;
+      --accent-glow: rgba(78, 140, 255, 0.4);
+      --cyan: #00f0ff;
+      --magenta: #f43f5e;
+      --green: #10b981;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Rotation container for testing portrait turn on landscape LCD */
+    #root {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      transform-origin: center center;
+    }
+
+    #root.turn-right {
+      position: absolute;
+      width: 800px;
+      height: 480px;
+      top: 50%;
+      left: 50%;
+      margin-top: -240px;
+      margin-left: -400px;
+      transform: rotate(90deg) scale(0.6);
+    }
+
+    #root.turn-left {
+      position: absolute;
+      width: 800px;
+      height: 480px;
+      top: 50%;
+      left: 50%;
+      margin-top: -240px;
+      margin-left: -400px;
+      transform: rotate(-90deg) scale(0.6);
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--surface-border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+      animation: pulse 2s infinite;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--text);
+    }
+
+    .telemetry {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .telemetry span strong {
+      color: var(--cyan);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button.btn {
+      background: #1e2638;
+      color: var(--text);
+      border: 1px solid #303b55;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+    }
+
+    button.btn:active {
+      transform: scale(0.96);
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    button.btn-accent {
+      background: var(--accent);
+      color: #fff;
+      border-color: transparent;
+    }
+
+    main {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+    }
+
+    canvas#paint {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      z-index: 2;
+    }
+
+    /* Target Crosshairs for calibration verification */
+    .target-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .target-dot {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      margin: -22px;
+      border-radius: 50%;
+      border: 2px dashed rgba(255, 255, 255, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .target-dot::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
+
+    .target-dot.hit {
+      border-style: solid;
+      border-color: var(--green);
+      background: rgba(16, 185, 129, 0.2);
+    }
+
+    .target-dot.hit::after {
+      background: var(--green);
+      box-shadow: 0 0 12px var(--green);
+    }
+
+    .target-label {
+      position: absolute;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      white-space: nowrap;
+      top: 100%;
+      margin-top: 4px;
+    }
+
+    /* Component Touch Test Sidebar / Drawer */
+    .widget-panel {
+      position: absolute;
+      right: 14px;
+      top: 14px;
+      width: 220px;
+      background: rgba(18, 22, 34, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 14px;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .widget-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
+    .test-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .counter-val {
+      font-size: 20px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--text);
+      min-width: 36px;
+      text-align: center;
+    }
+
+    .btn-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      padding: 0;
+      font-size: 18px;
+    }
+
+    .test-ptt {
+      width: 100%;
+      padding: 12px;
+      background: #1f273b;
+      border: 1px solid #303c58;
+      border-radius: 8px;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    .test-ptt.is-held {
+      background: var(--magenta);
+      border-color: var(--magenta);
+      color: #fff;
+      box-shadow: 0 0 20px rgba(244, 63, 94, 0.5);
+    }
+
+    .live-ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 240, 255, 0.8) 0%, rgba(78, 140, 255, 0) 70%);
+      pointer-events: none;
+      animation: ripple 0.5s ease-out forwards;
+      z-index: 4;
+    }
+
+    @keyframes ripple {
+      0% {
+        width: 10px;
+        height: 10px;
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        width: 100px;
+        height: 100px;
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(2.5);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.9); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <header>
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <div class="brand-title">Omni Touchscreen Test</div>
+      </div>
+      <div class="telemetry">
+        <span>X: <strong id="val-x">0</strong></span>
+        <span>Y: <strong id="val-y">0</strong></span>
+        <span>Touches: <strong id="val-count">0</strong></span>
+        <span>Rate: <strong id="val-fps">0</strong> fps</span>
+      </div>
+      <div class="controls">
+        <button class="btn" id="btn-turn" title="Toggle Rotation">Turn: None</button>
+        <button class="btn" id="btn-targets">Targets: ON</button>
+        <button class="btn" id="btn-clear">Clear</button>
+      </div>
+    </header>
+
+    <main id="main">
+      <canvas id="paint"></canvas>
+
+      <div class="target-overlay" id="targets">
+        <!-- 5 Calibration targets -->
+        <div class="target-dot" id="t-tl" style="top: 10%; left: 10%;">
+          <span class="target-label">Top-Left</span>
+        </div>
+        <div class="target-dot" id="t-tr" style="top: 10%; left: 90%;">
+          <span class="target-label">Top-Right</span>
+        </div>
+        <div class="target-dot" id="t-bl" style="top: 90%; left: 10%;">
+          <span class="target-label">Bottom-Left</span>
+        </div>
+        <div class="target-dot" id="t-br" style="top: 90%; left: 90%;">
+          <span class="target-label">Bottom-Right</span>
+        </div>
+        <div class="target-dot" id="t-center" style="top: 50%; left: 50%;">
+          <span class="target-label">Center</span>
+        </div>
+      </div>
+
+      <div class="widget-panel">
+        <div class="widget-title">Widget Tap Response</div>
+        
+        <div class="test-row">
+          <button class="btn btn-circle" id="btn-dec">−</button>
+          <div class="counter-val" id="count-disp">0</div>
+          <button class="btn btn-circle btn-accent" id="btn-inc">+</button>
+        </div>
+
+        <div class="test-row" style="margin-top: 4px;">
+          <button class="btn" id="btn-toggle" style="width: 100%;">Checkbox: OFF</button>
+        </div>
+
+        <div class="widget-title" style="margin-top: 6px;">Push-To-Talk Test</div>
+        <button class="test-ptt" id="btn-ptt">
+          <span>● Hold to Test PTT</span>
+        </button>
+        <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); text-align: center;" id="ptt-status">
+          Idle
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("paint");
+    const ctx = canvas.getContext("2d");
+    const valX = document.getElementById("val-x");
+    const valY = document.getElementById("val-y");
+    const valCount = document.getElementById("val-count");
+    const valFps = document.getElementById("val-fps");
+    const root = document.getElementById("root");
+    const targetsOverlay = document.getElementById("targets");
+
+    let isDrawing = false;
+    let lastPoint = null;
+    let turnMode = 0; // 0: None, 1: Turn Right (90deg), 2: Turn Left (-90deg)
+    let frames = 0;
+    let lastFpsTime = performance.now();
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    // FPS Counter
+    function updateFps() {
+      frames++;
+      const now = performance.now();
+      if (now - lastFpsTime >= 1000) {
+        valFps.textContent = Math.round((frames * 1000) / (now - lastFpsTime));
+        frames = 0;
+        lastFpsTime = now;
+      }
+      requestAnimationFrame(updateFps);
+    }
+    requestAnimationFrame(updateFps);
+
+    function spawnRipple(x, y) {
+      const ripple = document.createElement("div");
+      ripple.className = "live-ripple";
+      ripple.style.left = x + "px";
+      ripple.style.top = y + "px";
+      document.getElementById("main").appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
+    }
+
+    function checkTargets(x, y) {
+      const targets = [
+        document.getElementById("t-tl"),
+        document.getElementById("t-tr"),
+        document.getElementById("t-bl"),
+        document.getElementById("t-br"),
+        document.getElementById("t-center"),
+      ];
+      targets.forEach((t) => {
+        if (!t) return;
+        const rect = t.getBoundingClientRect();
+        const mainRect = document.getElementById("main").getBoundingClientRect();
+        const tx = rect.left - mainRect.left + rect.width / 2;
+        const ty = rect.top - mainRect.top + rect.height / 2;
+        const dist = Math.hypot(x - tx, y - ty);
+        if (dist < 32) {
+          t.classList.add("hit");
+        }
+      });
+    }
+
+    function onPointerDown(e) {
+      isDrawing = true;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      lastPoint = { x, y };
+
+      valX.textContent = Math.round(x);
+      valY.textContent = Math.round(y);
+      valCount.textContent = e.pointerType === "touch" ? (e.isPrimary ? 1 : 2) : 1;
+
+      spawnRipple(x, y);
+      checkTargets(x, y);
+
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#00f0ff";
+      ctx.shadowColor = "#00f0ff";
+      ctx.shadowBlur = 10;
+      ctx.fill();
+    }
+
+    function onPointerMove(e) {
+      if (!isDrawing) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      valX.textContent = Math.round(x);
+      valY.textContent = Math.round(y);
+
+      ctx.beginPath();
+      ctx.moveTo(lastPoint.x, lastPoint.y);
+      ctx.lineTo(x, y);
+      ctx.strokeStyle = "#4e8cff";
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.shadowColor = "#4e8cff";
+      ctx.shadowBlur = 8;
+      ctx.stroke();
+
+      lastPoint = { x, y };
+      checkTargets(x, y);
+    }
+
+    function onPointerUp(e) {
+      isDrawing = false;
+      valCount.textContent = 0;
+    }
+
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerup", onPointerUp);
+    canvas.addEventListener("pointercancel", onPointerUp);
+
+    // Controls
+    document.getElementById("btn-clear").addEventListener("click", () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.querySelectorAll(".target-dot").forEach((d) => d.classList.remove("hit"));
+    });
+
+    const btnTargets = document.getElementById("btn-targets");
+    btnTargets.addEventListener("click", () => {
+      const isVisible = targetsOverlay.style.display !== "none";
+      targetsOverlay.style.display = isVisible ? "none" : "block";
+      btnTargets.textContent = isVisible ? "Targets: OFF" : "Targets: ON";
+    });
+
+    const btnTurn = document.getElementById("btn-turn");
+    btnTurn.addEventListener("click", () => {
+      turnMode = (turnMode + 1) % 3;
+      if (turnMode === 0) {
+        root.className = "";
+        btnTurn.textContent = "Turn: None";
+      } else if (turnMode === 1) {
+        root.className = "turn-right";
+        btnTurn.textContent = "Turn: Right (+90°)";
+      } else {
+        root.className = "turn-left";
+        btnTurn.textContent = "Turn: Left (-90°)";
+      }
+      setTimeout(resizeCanvas, 300);
+    });
+
+    // Interactive Widgets
+    let score = 0;
+    const countDisp = document.getElementById("count-disp");
+    document.getElementById("btn-inc").addEventListener("click", () => {
+      score++;
+      countDisp.textContent = score;
+    });
+    document.getElementById("btn-dec").addEventListener("click", () => {
+      score--;
+      countDisp.textContent = score;
+    });
+
+    let toggleState = false;
+    const btnToggle = document.getElementById("btn-toggle");
+    btnToggle.addEventListener("click", () => {
+      toggleState = !toggleState;
+      btnToggle.textContent = toggleState ? "Checkbox: ON [✓]" : "Checkbox: OFF";
+      btnToggle.className = toggleState ? "btn btn-accent" : "btn";
+      btnToggle.style.width = "100%";
+    });
+
+    // PTT Hold Test
+    const btnPtt = document.getElementById("btn-ptt");
+    const pttStatus = document.getElementById("ptt-status");
+    let holdStart = 0;
+    let holdTimer = null;
+
+    btnPtt.addEventListener("pointerdown", (e) => {
+      btnPtt.setPointerCapture(e.pointerId);
+      btnPtt.classList.add("is-held");
+      holdStart = performance.now();
+      pttStatus.textContent = "Listening (0.0s)...";
+      holdTimer = setInterval(() => {
+        const sec = ((performance.now() - holdStart) / 1000).toFixed(1);
+        pttStatus.textContent = `Listening (${sec}s)...`;
+      }, 100);
+    });
+
+    function releasePtt() {
+      if (!btnPtt.classList.contains("is-held")) return;
+      btnPtt.classList.remove("is-held");
+      clearInterval(holdTimer);
+      const total = ((performance.now() - holdStart) / 1000).toFixed(2);
+      pttStatus.textContent = `Sent turn! Held for ${total}s`;
+    }
+
+    btnPtt.addEventListener("pointerup", releasePtt);
+    btnPtt.addEventListener("pointercancel", releasePtt);
+  </script>
+</body>
+</html>
