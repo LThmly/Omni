@@ -9,14 +9,14 @@ pio run -t upload
 pio device monitor
 ```
 
-`src/main.cpp` prints the boot test, then `src/wifi_link.cpp` joins the network and checks that the link can reach the internet. The `ufdevice` name and password are in `src/wifi_link.h`. A good join prints `wifi:` and an address, then `http: generate_204 -> 204`.
+`src/main.cpp` prints the boot test, then `src/wifi_link.cpp` joins the network. The `ufdevice` name and password are in `src/wifi_link.h`. `src/ai.cpp` is the Vertex client for a later shell call: `aiAsk(text, registryJson, turnJson)` returns the inner propose, mutate, or say object. The key is `GEMINI_API_KEY` in `src/gemini_key.h`, copied from the repo-root `.env`. That header stays untracked. Boot does not call the model.
 
 ## Own this
 
 - Display driver for the Adafruit 6382 (SSD1683, 400×300, black / white / red) on the 4224 Friend
 - Thumbwheel actions from `contract/modules/`
 - LittleFS store for the registry
-- `POST /v1/turn` client. Dev host is the stub on port 8787. Send `text` until the mic path exists
+- `aiAsk` in `src/ai.cpp`. Send `text` until the mic path exists
 - One paint per result. Input can queue while the panel is busy
 
 ## Leave to bring-up
