@@ -1,8 +1,8 @@
 # Device shell
 
-The phone that opens on the 5" XPT2046 panel. It paints JSON from `contract/`. It does not compile generated code. A finger is the input.
+The phone that opens on the 5" XPT2046 panel. It paints JSON from `contract/` with pygame. It does not compile generated code. A finger is the input.
 
-The page lives in [`sim/`](../sim/). This folder is how that page gets onto the Pi and stays there. A laptop shows the same phone upright. The Pi turns it 90° so it fills the glass.
+A laptop shows the same phone upright. The Pi turns it 90° so it fills the glass.
 
 ## Run it on a laptop
 
@@ -10,7 +10,7 @@ The page lives in [`sim/`](../sim/). This folder is how that page gets onto the 
 python3 firmware/shell.py
 ```
 
-Open `http://127.0.0.1:8080/sim/`.
+The window is 480×800. Type a request and press Enter. Ctrl+E empties the device, Ctrl+D loads the demo apps again, and Escape goes back. pygame comes from `python3-pygame` on the Pi. On a Mac: `python3 -m venv .venv && .venv/bin/pip install pygame-ce`, then `.venv/bin/python firmware/shell.py`.
 
 ## Demo on the Pi
 
@@ -33,9 +33,9 @@ Quit with Ctrl+Shift+Q, or `python3 firmware/shell.py --stop`. The next login op
 ## Own this
 
 - `demo.sh` writes the touchscreen overlay, registers login, and opens the phone
-- `shell.py` serves the phone and keeps the fullscreen window up
-- The portrait UI in `sim/shell.css` and `sim/shell.js`, including the arrow mark and Neuropolitical wordmark
-- Push-to-talk is on the phone. The simulator sends the text box. Microphone capture is the next piece of device work
+- `phone.py` draws the phone and keeps the fullscreen window up
+- The arrow mark and the Neuropolitical wordmark
+- Push-to-talk is on the phone. Until the microphone is connected, holding it sends the milk line. On a laptop, typed text and Enter send a turn instead
 
 ## Mount
 

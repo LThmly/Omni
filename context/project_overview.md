@@ -56,7 +56,7 @@ How the Pi runs the shell, what the model is allowed to emit, and how the simula
                                   │  3. Structured propose / mutate / say
                                   ▼
 [Raspberry Pi 3 shell] <── JSON ── [App spec + state]
-   ├── Portrait phone (sim/, fullscreen via firmware/install.sh)
+   ├── Portrait phone (firmware/phone.py, fullscreen via firmware/install.sh)
    └── Local app registry
 ```
 

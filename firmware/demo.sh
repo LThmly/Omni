@@ -17,9 +17,9 @@ case "$MODEL" in
     ;;
 esac
 
-if ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
+if ! "$PYTHON" -c "import pygame" >/dev/null 2>&1; then
   sudo apt-get update
-  sudo apt-get install -y chromium || sudo apt-get install -y chromium-browser
+  sudo apt-get install -y python3-pygame
 fi
 
 mkdir -p "$HOME/.config/autostart" "$HOME/.config/labwc" "$HOME/.omni"
