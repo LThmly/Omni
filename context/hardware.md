@@ -1,48 +1,80 @@
-# Hardware Context: Parts, Wiring & Pinout
+# Hardware Context: Parts, Wiring & Configuration
 
-## Parts List
+## 1. Parts List
 
-- **Microcontroller:** Seeed Studio XIAO ESP32S3 Plus
-- **Display Panel:** Adafruit 6382 (4.2" Tri-Color E-Ink Display)
-- **Display Driver:** Adafruit 4224 (eInk Breakout Friend)
-- **Microphone:** Adafruit 6049 (I2S MEMS Microphone Breakout – ICS-43434)
-- **Navigation Switch:** Same Sky TS43-135255-10-BK-200-SMT-TR (Up / Down / Push Thumbwheel)
-- **Battery:** 3.7V 1200mAh LiPo Pouch Cell (603450)
-- **Power Switch:** SPDT Slide Switch (in-line on battery positive line)
-- **Wiring:** 24–28 AWG harvested from USB cable
+- **Single-Board Computer (SBC):** Raspberry Pi 4 Model B (2GB, 4GB, or 8GB)
+- **Display & Touch Panel:** Kuman 3.5" HDMI Display-B 480×320 Dots V1.0 (Model MPI3508)
+  - Interface: Full HDMI for high-speed 60 FPS video
+  - Touch Controller: Onboard Texas Instruments / XPT2046 resistive touch controller
+- **Display Adapters:** 
+  - Micro-HDMI (Male) to Standard HDMI (Female) adapter / bridge (connects Raspberry Pi 4 Micro-HDMI Port 0 to the Kuman display HDMI input)
+- **Microphone / Audio Input:** USB Plug-and-Play Microphone (or USB Audio DAC / I2S MEMS mic)
+- **Power Supply:** 5V / 3A USB-C Power Adapter (or portable 5V/3A USB-C Li-Ion power bank)
+- **Storage:** MicroSD Card (Class 10 / UHS-I, 16GB+ with Raspberry Pi OS)
 
 ---
 
-## Wiring & Pinout List
+## 2. Hardware Connection & GPIO Pinout
 
-Wire to the silkscreen pad (`D8`, `D10`, …). The chip GPIO is in parentheses and does not match the pad index: `D8` is GPIO7. Sources: the [Seeed pin table](https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/) and the `XIAO_ESP32S3_Plus` Arduino variant.
+The Kuman 3.5" HDMI Display-B connects to the Raspberry Pi 4 through two physical interfaces:
+1. **Video:** Connected via the **Micro-HDMI to HDMI bridge** from Pi 4 Micro-HDMI 0 directly into the display's HDMI port.
+2. **Power & Touch:** Mounted directly onto the first 26 pins of the Raspberry Pi 4's 40-pin GPIO header (Pins 1–26).
 
-### Power Subsystem
-- **Battery Red Lead (+):** Connect to SPDT Switch Center Pin
-- **SPDT Switch Outer Pin:** Connect to XIAO `BAT+` pad (underside pad)
-- **Battery Black Lead (-):** Connect to XIAO `BAT-` / `GND` pad (underside pad)
+### 26-Pin GPIO Header Mapping (Power & XPT2046 Touch)
 
-### Adafruit 4224 (eInk Friend) -> XIAO ESP32S3 Plus
-- **VIN** -> `3V3`
-- **GND** -> `GND`
-- **SCK** -> `D8` (GPIO7)
-- **MOSI** -> `D10` (GPIO9). GPIO9 is a strapping pin; confirm the Friend does not hold it during boot.
-- **ECS (Display CS)** -> `D0` (GPIO1)
-- **DC (Data/Command)** -> `D1` (GPIO2)
-- **RST (Reset)** -> `D2` (GPIO3). GPIO3 is a strapping pin; same boot caution as MOSI.
-- **BUSY** -> `D9` (GPIO8). This pad is also the hardware MISO pin. Using it as a GPIO input is fine because the panel is not read.
-- **MISO & SRCS:** Leave disconnected. The panel is write-only SPI, and the Friend's SD card is unused. The 8MB PSRAM is on the XIAO itself and does not use these pins.
+| Pin # | Raspberry Pi 4 Pin / GPIO | Signal Name | Function |
+| :---: | :--- | :--- | :--- |
+| **1** | Pin 1 (3.3V) | **3V3** | 3.3V Logic Supply for XPT2046 touch IC |
+| **2** | Pin 2 (5V) | **5V_IN** | 5V Display logic & LED backlight power |
+| **4** | Pin 4 (5V) | **5V_IN** | 5V Power (parallel rail) |
+| **6** | Pin 6 (GND) | **GND** | System Ground |
+| **9** | Pin 9 (GND) | **GND** | System Ground |
+| **11**| Pin 11 (GPIO 17) | **NC / Reserved** | Not connected on HDMI-B model |
+| **14**| Pin 14 (GND) | **GND** | System Ground |
+| **19**| Pin 19 (GPIO 10 - MOSI0) | **TP_SI** | Touch Controller SPI Data In |
+| **20**| Pin 20 (GND) | **GND** | System Ground |
+| **21**| Pin 21 (GPIO 9 - MISO0) | **TP_SO** | Touch Controller SPI Data Out |
+| **22**| Pin 22 (GPIO 25) | **TP_IRQ** | Touch Interrupt (active LOW on touch contact) |
+| **23**| Pin 23 (GPIO 11 - SCLK0) | **TP_SCK** | Touch Controller SPI Clock |
+| **24**| Pin 24 (GPIO 8 - CE0) | **NC / Reserved** | Alternate SPI Chip Select |
+| **25**| Pin 25 (GND) | **GND** | System Ground |
+| **26**| Pin 26 (GPIO 7 - CE1) | **TP_CS** | Touch Controller SPI Chip Select |
 
-### Adafruit 6049 (I2S Microphone) -> XIAO ESP32S3 Plus
-- **3V3** -> `3V3` (shared with eInk Friend)
-- **GND** -> `GND` (shared with system ground)
-- **DOUT (Data Out)** -> `D7` (GPIO44). This pad is also the default UART RX. Logs stay on native USB, so the mic can take it.
-- **BCLK (Bit Clock)** -> `D6` (GPIO43). Default UART TX. Same note as DOUT.
-- **LRCL / WS (Word Select)** -> `D5` (GPIO6)
-- **SEL:** Tie to `GND` (Left audio channel)
+*(Pins 27–40 on the Raspberry Pi 4 GPIO header remain completely exposed and unencumbered for external peripherals or auxiliary sensors).*
 
-### Same Sky TS43 Thumbwheel -> XIAO ESP32S3 Plus
-- **Common Pin:** Connect to `GND`
-- **Up Contact:** Connect to `D4` (GPIO5)
-- **Down Contact:** Connect to `D3` (GPIO4). Reset is the neighboring pad, `D2` / GPIO3.
-- **Center Push Contact:** Connect to underside / edge pad `D19` (GPIO11)
+---
+
+## 3. Interaction Model (Touchscreen replacing Thumbwheel)
+
+All tactile thumbwheel controls are now handled directly through the 480×320 touchscreen:
+
+| Physical Thumbwheel (Old) | Touchscreen Equivalent (New) | Behavior in UI |
+| :--- | :--- | :--- |
+| **Thumbwheel Up / Down** | **Touch Drag / Swipe Up & Down** | Smooth inertial scrolling through app cards, checklist rows, or counter lists. |
+| **Center Push (Click)** | **Direct Screen Tap** | Tap to toggle checkboxes, select buttons, confirm dialogs (`[ Yes ]` / `[ No ]`). |
+| **Center Push (Long Hold)** | **Touch & Hold On-Screen PTT Button** | Touch-and-hold the dedicated microphone / action bar at the bottom of the screen to record voice; release to send. |
+
+---
+
+## 4. Raspberry Pi OS Display & Touch Configuration
+
+To configure native 480×320 resolution and touch calibration on Raspberry Pi OS:
+
+### Video Resolution (`/boot/firmware/config.txt` or `/boot/config.txt`)
+Add the following HDMI timing block:
+```ini
+hdmi_force_hotplug=1
+config_hdmi_boost=10
+hdmi_group=2
+hdmi_mode=87
+hdmi_cvt=480 320 60 6 0 0 0
+dtoverlay=ads7846,cs=1,penirq=25,penirq_pull=2,speed=50000,keep_vref_on=0,swapxy=0,pmax=255,xohms=150,xmin=200,xmax=3900,ymin=200,ymax=3900
+```
+
+### Alternatively, using the official LCD-show driver:
+```bash
+git clone https://github.com/goodtft/LCD-show.git
+chmod -R 755 LCD-show
+cd LCD-show/
+sudo ./MPI3508-show
+```
