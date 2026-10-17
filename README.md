@@ -9,8 +9,8 @@ People can work in parallel. The shared surface is [`contract/`](contract/). The
 | Lane | Folder | Start here | Blocked on |
 | :--- | :--- | :--- | :--- |
 | Contract / modules | [`contract/`](contract/) | Module files and fixtures already describe the demo | Nothing |
-| Device shell (Pi 3) | [`firmware/`](firmware/) | `python3 firmware/install.sh`, then log in again | A board, for the autostart only |
-| Board bring-up | [`firmware/bringup/`](firmware/bringup/) | XPT2046 overlay and 800×480 HDMI mode, then stand the stack portrait | A board |
+| Device shell (Pi 3) | [`firmware/`](firmware/) | `sh firmware/demo.sh` on the Pi desktop | A board |
+| Board bring-up | [`firmware/bringup/`](firmware/bringup/) | `sh firmware/demo.sh` wires touch, then the phone opens | A board |
 | UI simulator | [`sim/`](sim/) | `python3 firmware/shell.py`, then open `/sim/` | Nothing |
 | Cloud agent | [`cloud/`](cloud/) | `stub_server.py` is the offline `/v1/turn`. `try_turn.py` tests the real model | An API key, only for `try_turn.py` |
 

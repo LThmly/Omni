@@ -268,6 +268,23 @@ button:focus-visible, textarea:focus-visible {
 
 .app-list { display: flex; flex-direction: column; gap: 10px; }
 
+.chips {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.chips button {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 14px;
+  background: var(--card-2);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.home-empty .chips { width: min(100%, 420px); }
+
 .tile {
   display: flex;
   flex-direction: row;

@@ -137,12 +137,26 @@ function omniMark(size) {
   `;
 }
 
+const DEMO_LINES = [
+  ["List", "Add milk to my shopping list."],
+  ["Score", "Keep score for ping pong between me and Alex."],
+  ["Water", "Log 16 ounces of water."],
+];
+
+function demoChips() {
+  const chips = DEMO_LINES.map(([label, text]) =>
+    `<button type="button" data-act="line" data-text="${escapeHtml(text)}">${escapeHtml(label)}</button>`
+  ).join("");
+  return `<div class="chips">${chips}</div>`;
+}
+
 function renderHome() {
   if (!state.registry.length) {
     return `
       <div class="home home-empty">
-        <div class="home-brand">${omniMark(168)}<p class="wordmark boot-name">omni</p></div>
-        <p class="empty">No apps yet. Ask for a list, a scoreboard, or a water log.</p>
+        <div class="home-brand">${omniMark(148)}<p class="wordmark boot-name">omni</p></div>
+        <p class="empty">Tap List, Score, or Water.</p>
+        ${demoChips()}
       </div>
     `;
   }
@@ -157,8 +171,9 @@ function renderHome() {
   `).join("");
   return `
     <div class="home">
-      <div class="home-brand">${omniMark(112)}<p class="wordmark">omni</p></div>
+      <div class="home-brand">${omniMark(88)}<p class="wordmark">omni</p></div>
       <div class="app-list">${tiles}</div>
+      ${demoChips()}
     </div>
   `;
 }
@@ -451,6 +466,7 @@ function onScreenClick(event) {
   if (state.agent === "thinking") return;
   const act = el.dataset.act;
   if (act === "open") return openApp(el.dataset.id);
+  if (act === "line") return sendTurn(el.dataset.text);
   if (act === "back") return goHome();
   if (act === "confirm") return confirmProposal();
   if (act === "cancel") return cancelProposal();

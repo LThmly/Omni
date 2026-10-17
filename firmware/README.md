@@ -12,37 +12,27 @@ python3 firmware/shell.py
 
 Open `http://127.0.0.1:8080/sim/`.
 
-## Leave it running on the Pi
+## Demo on the Pi
 
-The OS is already on the board. There is no separate image to flash. Once, on the Pi:
-
-```bash
-python3 firmware/install.sh
-```
-
-Log out and back in. The phone opens over the desktop and stays up. If the window closes, it opens again.
-
-Quit with Ctrl+Shift+Q, or:
+From a terminal on the Pi desktop:
 
 ```bash
-python3 firmware/shell.py --stop
+sh firmware/demo.sh
 ```
 
-To try it before installing:
+The first run writes the XPT2046 touchscreen overlay and the 800×480 mode, then reboots. After you log in, the phone opens on the glass and stays there. A later run skips the reboot and opens it immediately.
 
-```bash
-python3 firmware/shell.py --kiosk
-```
+What you can press:
 
-That needs Chromium (`sudo apt install chromium`). The turn stub is separate, on the same machine:
+- A row opens that app. On Shopping, a tap checks an item. On Ping pong, `+` and `−` change the score. On Water, `+8 oz` and `+16 oz` move the bar.
+- **List**, **Score**, and **Water** on the home screen send those three demo lines. List and Score and Water each pop a confirm card, or they edit an app that is already there. **Yes, create it** and **Cancel** are fingers, not the network.
+- Hold the talk bar. It sends “Add milk to my shopping list.” The microphone is not connected.
 
-```bash
-python3 cloud/stub_server.py
-```
+Quit with Ctrl+Shift+Q, or `python3 firmware/shell.py --stop`. The next login opens the demo again.
 
 ## Own this
 
-- `install.sh` registers the app with the Pi desktop session
+- `demo.sh` writes the touchscreen overlay, registers login, and opens the phone
 - `shell.py` serves the phone and keeps the fullscreen window up
 - The portrait UI in `sim/shell.css` and `sim/shell.js`, including the arrow mark and Neuropolitical wordmark
 - Push-to-talk is on the phone. The simulator sends the text box. Microphone capture is the next piece of device work

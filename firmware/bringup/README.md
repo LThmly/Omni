@@ -1,22 +1,18 @@
 # On the Pi
 
-The panel is a 5" 800×480 HDMI LCD. Touch is the XPT2046 on the GPIO header. Picture and touch are set up once, then the phone opens at every login. Pin names and the exact lines are in [`context/hardware.md`](../../context/hardware.md).
+From a terminal on the desktop:
 
-1. Seat the display on the 40-pin header and connect HDMI to the Pi’s full-size HDMI port.
-2. In `/boot/firmware/config.txt`, add the `ads7846` overlay from the hardware notes. That is the touchscreen.
-3. Append `video=HDMI-A-1:800x480M@60` to the single line in `/boot/firmware/cmdline.txt`.
-4. Reboot. The desktop should fill the glass, and a finger should move the pointer. If a sideways drag moves the pointer vertically, set `swapxy=1` in the overlay and reboot. Do not set `display_rotate`.
-5. From the repo:
+```bash
+sh firmware/demo.sh
+```
 
-   ```bash
-   python3 firmware/install.sh
-   ```
+The first run adds the XPT2046 overlay and `video=HDMI-A-1:800x480M@60`, then reboots. Log in. The phone is on the glass.
 
-   Log out and back in, or reboot. The phone opens over the desktop and stays there. Closing the window opens it again.
+Seat the display on the 40-pin header and connect the Pi’s HDMI port before that reboot. Pin names are in [`context/hardware.md`](../../context/hardware.md). If a sideways drag moves the pointer up and down, set `swapxy=1` on the `ads7846` line in `/boot/firmware/config.txt` and reboot. Do not set `display_rotate`.
 
-Stand the stack so the right edge of the landscape picture is up. The app is a 480×800 phone turned onto the glass. If it comes up upside down, change `--kiosk` to `--kiosk --turn left` in `~/.config/autostart/omni.desktop` and `~/.config/labwc/autostart`, then log in again.
+Stand the stack so the right edge of the landscape picture is up. If the phone is upside down, change `--kiosk` to `--kiosk --turn left` in `firmware/start-demo.sh`.
 
-Quit with Ctrl+Shift+Q, or from a shell:
+Quit with Ctrl+Shift+Q, or:
 
 ```bash
 python3 firmware/shell.py --stop

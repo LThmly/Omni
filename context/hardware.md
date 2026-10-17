@@ -25,7 +25,7 @@ Stand the stack so the right edge of the landscape picture is up. The app is a 4
 
 The XPT2046 is the touchscreen. After the overlay below, Raspberry Pi OS presents it as a pointer, and the phone treats a finger the way a phone does: tap, drag, and hold.
 
-Add this line to `/boot/firmware/config.txt` (on an older image that file is `/boot/config.txt`):
+`firmware/demo.sh` writes this line into `/boot/firmware/config.txt` (on an older image that file is `/boot/config.txt`):
 
 ```
 dtoverlay=ads7846,cs=1,penirq=25,penirq_pull=2,speed=50000,keep_vref_on=1,swapxy=0,pmax=255,xohms=150,xmin=200,xmax=3900,ymin=200,ymax=3900
@@ -45,7 +45,7 @@ If a finger dragged sideways moves the pointer up and down, change `swapxy=0` to
 
 ## Picture
 
-Current Raspberry Pi OS reads the mode from the kernel command line. Append this to the single existing line in `/boot/firmware/cmdline.txt`:
+`firmware/demo.sh` also appends this to the single existing line in `/boot/firmware/cmdline.txt`:
 
 ```
 video=HDMI-A-1:800x480M@60
