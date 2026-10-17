@@ -15,18 +15,27 @@ Quit with Ctrl+Shift+Q, or `python3 firmware/phone.py --stop`.
 from __future__ import annotations
 
 import argparse
+import base64
 import copy
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+import io
 import json
 import math
 import os
 import queue
+import shutil
 import signal
+import struct
+import subprocess
 import sys
 import threading
 import time
 import urllib.error
 import urllib.request
+import wave
 from pathlib import Path
 
 from logic import ROOT, Device, agent_label, blurb, layout_of, num
@@ -591,18 +600,125 @@ def post_json(url, payload):
         return json.loads(response.read().decode())
 
 
+def boost_wav(wav_bytes: bytes, gain: float = 2.5) -> bytes:
+    try:
+        with io.BytesIO(wav_bytes) as in_io, wave.open(in_io, "rb") as wf:
+            params = wf.getparams()
+            frames = wf.readframes(wf.getnframes())
+            sampwidth = wf.getsampwidth()
+        if sampwidth == 2:
+            count = len(frames) // 2
+            samples = struct.unpack(f"<{count}h", frames)
+            boosted = [max(-32768, min(32767, int(s * gain))) for s in samples]
+            out_frames = struct.pack(f"<{count}h", *boosted)
+        elif sampwidth == 4:
+            count = len(frames) // 4
+            samples = struct.unpack(f"<{count}i", frames)
+            max_i = 2147483647
+            min_i = -2147483648
+            boosted = [max(min_i, min(max_i, int(s * gain))) for s in samples]
+            out_frames = struct.pack(f"<{count}i", *boosted)
+        else:
+            return wav_bytes
+
+        out_io = io.BytesIO()
+        with wave.open(out_io, "wb") as out_wf:
+            out_wf.setparams(params)
+            out_wf.writeframes(out_frames)
+        return out_io.getvalue()
+    except Exception:
+        return wav_bytes
+
+
+class AudioRecorder:
+    """Non-blocking background audio recorder for push-to-talk using arecord."""
+
+    def __init__(self, tmp_path=Path("/tmp/omni_talk.wav")):
+        self.proc = None
+        self.tmp_path = Path(tmp_path)
+        self.start_time = 0.0
+
+    def find_device(self) -> str:
+        if not shutil.which("arecord"):
+            return "default"
+        try:
+            res = subprocess.run(["arecord", "-l"], capture_output=True, text=True, timeout=2)
+            if res.returncode == 0:
+                for line in res.stdout.splitlines():
+                    if "card" in line and "device" in line:
+                        if any(k in line.lower() for k in ("voicehat", "googlevoice", "i2s", "soundcard")):
+                            parts = line.split(":")
+                            card = int(parts[0].replace("card", "").strip())
+                            dev = int(parts[1].split(",")[1].replace("device", "").strip())
+                            return f"plughw:{card},{dev}"
+        except Exception:
+            pass
+        return "default"
+
+    def start(self):
+        if not shutil.which("arecord"):
+            return
+        device = self.find_device()
+        self.start_time = time.monotonic()
+        try:
+            self.tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        cmd = [
+            "arecord",
+            "-D", device,
+            "-c", "2",
+            "-r", "48000",
+            "-f", "S32_LE",
+            "-t", "wav",
+            str(self.tmp_path),
+        ]
+        try:
+            self.proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            self.proc = None
+
+    def stop(self, gain: float = 2.5) -> str | None:
+        if self.proc is None:
+            return None
+        proc = self.proc
+        self.proc = None
+        duration = time.monotonic() - self.start_time
+        try:
+            proc.terminate()
+            proc.wait(timeout=1.0)
+        except Exception:
+            pass
+
+        if duration < 0.25:
+            return None
+
+        if not self.tmp_path.exists():
+            return None
+
+        try:
+            raw_bytes = self.tmp_path.read_bytes()
+            if len(raw_bytes) < 200:
+                return None
+            boosted = boost_wav(raw_bytes, gain=gain)
+            return base64.b64encode(boosted).decode("ascii")
+        except Exception:
+            return None
+
+
 def hold_lock():
     global _lock
     PID_PATH.parent.mkdir(parents=True, exist_ok=True)
     handle = open(PID_PATH, "a+")
-    try:
-        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        handle.seek(0)
-        existing = handle.read().strip() or "unknown"
-        print("Omni is already running (pid %s)." % existing)
-        print("Quit it with: python3 firmware/phone.py --stop")
-        sys.exit(0)
+    if fcntl is not None:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            handle.seek(0)
+            existing = handle.read().strip() or "unknown"
+            print("Omni is already running (pid %s)." % existing)
+            print("Quit it with: python3 firmware/phone.py --stop")
+            sys.exit(0)
     handle.seek(0)
     handle.truncate()
     handle.write(str(os.getpid()))
@@ -645,6 +761,7 @@ class App:
             self.device.load_demos()
             self.device.save(store)
         self.screen = Screen()
+        self.recorder = AudioRecorder()
         self.stub = stub
         self.turn = turn if kiosk else "none"
         self.kiosk = kiosk
@@ -655,14 +772,14 @@ class App:
         self.stopping = False
         self.phone = pygame.Surface((PW, PH))
 
-    def send(self, text):
+    def send(self, text="", wav_base64=None):
         text = (text or "").strip()
         self.draft = ""
         if self.device.agent == "thinking":
             return
-        if not text:
+        if not text and not wav_base64:
             self.device.agent = "responding"
-            self.device.say = "Type a request, then press Enter."
+            self.device.say = "Type a request, or hold the bar to speak."
             self.device.arm_idle(time.monotonic())
             return
         self.device.agent = "thinking"
@@ -674,6 +791,8 @@ class App:
             "registry": copy.deepcopy(self.device.registry),
             "focused_app_id": self.device.app_id,
         }
+        if wav_base64:
+            payload["wav_base64"] = wav_base64
         threading.Thread(target=self.fetch, args=(payload,), daemon=True).start()
 
     def fetch(self, payload):
@@ -716,6 +835,7 @@ class App:
         hit = self.screen.at(pos)
         if hit is not None and hit.act == "talk":
             self.device.agent = "listening"
+            self.recorder.start()
             self.press = {"talk": True, "x": pos[0], "y": pos[1], "scroll": self.screen.scroll, "moved": False}
             return
         self.press = {
@@ -742,8 +862,10 @@ class App:
         if press is None:
             return
         if press["talk"]:
+            wav_b64 = self.recorder.stop()
             if self.device.agent == "listening":
-                self.send(self.draft or TALK_LINE)
+                fallback_text = self.draft or (TALK_LINE if not wav_b64 else "")
+                self.send(text=fallback_text, wav_base64=wav_b64)
             return
         if press["moved"]:
             return

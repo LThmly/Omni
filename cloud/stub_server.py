@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Keyword /v1/turn for firmware and the simulator. Not the demo model."""
 
+import base64
+import io
 import json
+import os
 import re
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -22,10 +26,45 @@ def has(words, *needles):
     return any(word == needle or word.startswith(needle) for word in words for needle in needles)
 
 
+# Allow importing try_turn
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    import try_turn
+except ImportError:
+    try_turn = None
+
+
+def transcribe_audio(wav_b64):
+    try:
+        import speech_recognition as sr
+        r = sr.Recognizer()
+        data = base64.b64decode(wav_b64)
+        with io.BytesIO(data) as in_f, sr.AudioFile(in_f) as source:
+            audio = r.record(source)
+            return r.recognize_google(audio)
+    except Exception:
+        return ""
+
+
 def respond(body):
-    words = tokens(body.get("text"))
+    text = (body.get("text") or "").strip()
+    wav_b64 = body.get("wav_base64")
     registry = body.get("registry") or []
+
+    # 1. If Gemini API key is configured, query the real AI model
+    if try_turn is not None and (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
+        try:
+            return try_turn.ask(text, registry, wav_base64=wav_b64)
+        except Exception as exc:
+            print("Gemini call failed, falling back to stub:", exc)
+
+    # 2. If audio was sent without text, try speech-to-text
+    if wav_b64 and not text:
+        text = transcribe_audio(wav_b64)
+
+    words = tokens(text)
     has_list = any(app.get("module") == "checklist" for app in registry)
+
     if has(words, "score", "ping", "pong"):
         return load("propose-scoreboard.json")
     if has(words, "water", "ounce", "hydrat"):
@@ -34,6 +73,14 @@ def respond(body):
         return load("mutate-shopping.json")
     if has(words, "milk", "shopping", "list") and not has_list:
         return load("propose-shopping.json")
+
+    # If spoken audio was provided in offline stub mode
+    if wav_b64 and not words:
+        if not has_list:
+            return load("propose-shopping.json")
+        else:
+            return load("mutate-shopping.json")
+
     return load("say.json")
 
 

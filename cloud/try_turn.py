@@ -68,17 +68,28 @@ def candidate_text(body):
     return texts[-1]
 
 
-def ask(text, registry):
+def ask(text, registry, wav_base64=None):
+    load_env()
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
     if not key:
         raise SystemExit("Set GEMINI_API_KEY in .env at the repo root. That file stays untracked.")
     model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+    parts = []
+    if wav_base64:
+        parts.append({
+            "inlineData": {
+                "mimeType": "audio/wav",
+                "data": wav_base64,
+            }
+        })
+    user_payload = {"text": text or "User spoke. Listen to the audio and generate the turn JSON.", "registry": registry}
+    parts.append({"text": json.dumps(user_payload)})
     payload = {
         "systemInstruction": {"parts": [{"text": SYSTEM}]},
         "contents": [
             {
                 "role": "user",
-                "parts": [{"text": json.dumps({"text": text, "registry": registry})}],
+                "parts": parts,
             }
         ],
         "generationConfig": {

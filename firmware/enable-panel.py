@@ -13,6 +13,10 @@ OVERLAY = (
     "keep_vref_on=1,swapxy=0,pmax=255,xohms=150,xmin=200,xmax=3900,ymin=200,ymax=3900"
 )
 VIDEO = "video=HDMI-A-1:800x480M@60"
+I2S_LINES = [
+    "dtparam=i2s=on",
+    "dtoverlay=googlevoicehat-soundcard",
+]
 
 
 def first_existing(paths):
@@ -31,10 +35,17 @@ def main():
 
     changed = False
     text = config.read_text()
+    to_add = []
     if "dtoverlay=ads7846" not in text:
+        to_add.append(OVERLAY)
+    for entry in I2S_LINES:
+        if entry not in text:
+            to_add.append(entry)
+
+    if to_add:
         if text and not text.endswith("\n"):
             text += "\n"
-        config.write_text(text + OVERLAY + "\n")
+        config.write_text(text + "\n".join(to_add) + "\n")
         changed = True
 
     line = cmdline.read_text().replace("\n", "")

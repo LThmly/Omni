@@ -22,6 +22,11 @@ if ! "$PYTHON" -c "import pygame" >/dev/null 2>&1; then
   sudo apt-get install -y python3-pygame
 fi
 
+if ! command -v arecord >/dev/null 2>&1; then
+  sudo apt-get update
+  sudo apt-get install -y alsa-utils
+fi
+
 mkdir -p "$HOME/.config/autostart" "$HOME/.config/labwc" "$HOME/.omni"
 
 cat > "$HOME/.config/autostart/omni.desktop" <<EOF
