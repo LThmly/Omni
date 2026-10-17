@@ -18,8 +18,8 @@ class Recognizer:
 
 
 class Audio:
-    def __init__(self, chunks=(), error=False):
-        self.chunks=chunks;self.error=error;self.stopped=False
+    def __init__(self, chunks=(), error=False, status=None):
+        self.chunks=chunks;self.error=error;self.stopped=False;self.status=status
     def query_devices(self, device, kind):
         if self.error: raise RuntimeError('No input device')
         return {'name':'Test microphone','default_samplerate':16000}
@@ -27,7 +27,7 @@ class Audio:
         self.kwargs=kwargs
         return self
     def __enter__(self):
-        for chunk in self.chunks:self.kwargs['callback'](chunk,1600,None,None)
+        for chunk in self.chunks:self.kwargs['callback'](chunk,1600,None,self.status)
         return self
     def stop(self):self.stopped=True
     def __exit__(self,*args):self.stop()
@@ -76,6 +76,23 @@ class SpeechTest(unittest.TestCase):
         self.assertEqual(events[0][1],'error')
         self.assertIn('No input device',events[0][2])
         self.assertFalse(any(kind in ('final','partial') for _,kind,_ in events))
+
+    def test_full_decode_queue_reports_error_instead_of_submitting_truncated_speech(self):
+        speech=self.make(Audio([b'correct']*101));speech.start()
+        events=self.wait_for(speech,'error')
+        self.assertIn('audio overflow',next(data for _,kind,data in events if kind=='error'))
+        self.assertFalse(any(kind=='final' for _,kind,_ in events))
+
+    def test_transient_audio_overrun_keeps_current_audio_and_finalizes(self):
+        speech=self.make(Audio([b'wrong',b'correct'],status='input overflow'))
+        number=speech.start()
+        events=self.wait_for(speech,'partial')
+        speech.finish(number);speech.session['thread'].join(2)
+        events+=speech.poll()
+        self.assertEqual(sum(kind=='warning' for _,kind,_ in events),1)
+        self.assertEqual([payload['partial'] for _,kind,payload in events if kind=='partial'],['add mill','add milk'])
+        self.assertTrue(any(kind=='final' for _,kind,_ in events))
+        self.assertFalse(any(kind=='error' for _,kind,_ in events))
 
 
 if __name__=='__main__':unittest.main()

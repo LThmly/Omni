@@ -8,6 +8,7 @@ import json
 import math
 import operator
 import random
+import sys
 import time
 from pathlib import Path
 
@@ -343,7 +344,7 @@ class NativeScreen(legacy.Screen):
             return
         if device.agent == 'listening':text=self.listening_text
         elif device.agent == 'thinking':text=self.submitted_text
-        else:text=draft
+        else:text=draft or self.submitted_text
         font=self.font(round(22*self.prefs['text_scale']))
         line_height=round(28*self.prefs['text_scale'])
         self.transcript.update(text,self.time,lambda value:font.size(value)[0],
@@ -427,7 +428,7 @@ class NativeScreen(legacy.Screen):
 
 
 class NativeApp(legacy.App):
-    def __init__(self, stub, turn, kiosk, store=None, live=False, speech=None):
+    def __init__(self, stub, turn, kiosk, store=None, live=False, speech=None, backend=None):
         # Separate from the retired demo registry; existing device data is intact.
         store=Path(store) if store else Path.home()/'.omni'/'pi-ui'/'registry.json'
         self.store=store;self.preferences_path=store.with_name('preferences.json')
@@ -449,7 +450,8 @@ class NativeApp(legacy.App):
         self.device.registry=builtins+[app for app in self.device.registry if isinstance(app,dict) and app.get('id') not in builtin_ids and isinstance(app.get('state'),dict)]
         self.device.go_home();self.device.save(store)
         self.screen=NativeScreen(self.prefs)
-        self.stub=stub;self.turn=turn if kiosk else 'none';self.kiosk=kiosk;self.live=live
+        self.stub=stub;self.turn=turn if kiosk else 'none';self.kiosk=kiosk
+        self.backend=backend or ('stub' if live else 'demo');self.live=self.backend!='demo'
         self.recorder=legacy.AudioRecorder()
         self.draft='';self.events=legacy.queue.Queue();self.press=None;self.stopping=False
         self.phone=pygame.Surface((480,800))
@@ -484,6 +486,19 @@ class NativeApp(legacy.App):
             threading.Thread(target=self.fetch_native,args=(payload,self.request_number),daemon=True).start()
 
     def fetch_native(self,payload,number):
+        if self.backend=='gemini':
+            root=str(Path(__file__).resolve().parents[1])
+            if root not in sys.path:sys.path.insert(0,root)
+            from cloud.try_turn import TurnError, ask
+            print('Speech: %s' % payload['text'],flush=True)
+            try:
+                result=ask(payload['text'],payload['registry'],wav_base64=payload.get('wav_base64'))
+                print('Gemini turn:\n%s' % json.dumps(result,indent=2),flush=True)
+            except TurnError as error:
+                print('Gemini: %s' % error,flush=True)
+                result={'op':'say','say':str(error)}
+            self.events.put((number,result))
+            return
         try:self.events.put((number,legacy.post_json(self.stub,payload)))
         except (OSError,ValueError):self.events.put((number,None))
 
@@ -588,6 +603,7 @@ class NativeApp(legacy.App):
                         scroll=self.screen.scroll)
         if self.press['talk']:
             self.device.say=''
+            self.screen.submitted_text=''
             self.screen.listening_text=''
             self.screen.transcript.clear()
             self.speech_segments=[]
@@ -733,10 +749,13 @@ class NativeApp(legacy.App):
                 self.apply_speech_result(payload)
             elif kind=='ready':
                 print(f"Microphone ready: {payload['device']} ({payload['samplerate']} Hz)", flush=True)
+            elif kind=='warning':
+                print(f'Microphone warning (continuing): {payload}',flush=True)
             elif kind=='final' and self.speech_finalizing:
                 text=payload.get('text','').strip()
                 self.speech_session=None;self.speech_finalizing=False
                 self.speech_segments=[];self.screen.listening_text=text
+                self.screen.submitted_text=text
                 self.device.agent='idle'
                 if text:
                     print(f'Recognized: {text}',flush=True)

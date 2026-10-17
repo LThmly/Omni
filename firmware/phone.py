@@ -1073,6 +1073,7 @@ def main():
     parser.add_argument("--stub", default="http://127.0.0.1:8787/v1/turn")
     parser.add_argument("--sim", action="store_true", help="Use an isolated simulator profile; same UI/input as the Pi.")
     parser.add_argument("--live", action="store_true", help="Send requests to --stub instead of local demo generation.")
+    parser.add_argument("--backend", choices=("demo", "stub", "gemini"), help="App generation: local preview, HTTP stub, or direct Gemini. Overrides --live.")
     parser.add_argument("--store", type=Path, help="Override the registry path (preferences live alongside it).")
     parser.add_argument("--speech", choices=("vosk", "demo"), help="Microphone ASR (default in simulator), or scripted demo (default on Pi).")
     parser.add_argument("--model", type=Path, help="Path to an unpacked Vosk model.")
@@ -1117,7 +1118,8 @@ def main():
             speech = VoskSpeech(args.model or DEFAULT_MODEL, device=audio_device)
         except (ImportError, OSError, RuntimeError) as error:
             parser.error(f"Could not start Vosk: {error}. See sim/README.md; --speech demo uses the scripted preview.")
-    app = NativeApp(args.stub, args.turn, args.kiosk, store=store, live=args.live, speech=speech)
+    app = NativeApp(args.stub, args.turn, args.kiosk, store=store, live=args.live, speech=speech, backend=args.backend)
+    print("App backend: %s" % app.backend)
     print("Omni UI: shared pygame simulator/Pi. File: %s" % Path(__file__).resolve())
     print("Omni phone. Registry at %s" % app.store)
     if args.kiosk:

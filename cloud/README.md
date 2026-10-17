@@ -35,6 +35,6 @@ python3 cloud/try_turn.py "Add milk to my shopping list."
 python3 cloud/try_turn.py "Add coffee" --registry contract/fixtures/registry.json
 ```
 
-The schema root is `{"turn": ...}`. The script prints the inner object, which matches `contract/turn.schema.json`. Import `ask()` for the same call. A reply that cannot be used raises `TurnError` instead of exiting the process. The shell does not call the model yet.
+The schema root is `{"turn": ...}`. The script prints the inner object, which matches `contract/turn.schema.json`. Import `ask()` for the same call. A reply that cannot be used raises `TurnError` instead of exiting the process. The pygame shell calls this client directly with `--backend gemini` and applies the returned turn to its UI. `--backend stub` keeps the HTTP path available.
 
-Speech-to-text runs here. The device will send `wav_base64`. The stub ignores audio and reads `text`.
+Vosk speech recognition runs locally on the device. In Vosk mode Gemini receives finalized text; recorded `wav_base64` requests remain supported for the non-Vosk recording path. Without a key, the stub matches text keywords and can optionally transcribe audio if its speech-recognition dependency is available.

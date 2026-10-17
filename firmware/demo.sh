@@ -54,4 +54,4 @@ if [ "$RESULT" = "reboot" ]; then
 fi
 
 echo "Panel already configured. Opening the demo."
-exec "$ROOT/firmware/start-demo.sh"
+exec "$ROOT/firmware/start-demo.sh" "$@"

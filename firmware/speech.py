@@ -64,6 +64,7 @@ class VoskSpeech:
     def _capture(self, session):
         samples = queue.Queue(maxsize=100)  # 10 seconds of 100 ms blocks.
         overflow = threading.Event()
+        warned = threading.Event()
         number = session['id']
         segments = []
         previous = None
@@ -73,9 +74,11 @@ class VoskSpeech:
 
         def callback(data, frames, timing, status):
             if session['stop'].is_set(): return
-            if status:
-                overflow.set()
-                return
+            # PortAudio can report a transient overrun when a Pi is busy.
+            # The current block is still usable; keep it and let ASR recover.
+            if status and not warned.is_set():
+                warned.set()
+                emit('warning', str(status))
             try: samples.put_nowait(bytes(data))
             except queue.Full: overflow.set()
 
@@ -101,7 +104,7 @@ class VoskSpeech:
 
             # Match the hardware's sample rate; Vosk resamples internally.
             with self.audio.RawInputStream(samplerate=rate, blocksize=max(1, rate//10),
-                    device=self.device, dtype='int16', channels=1, callback=callback) as stream:
+                    device=self.device, dtype='int16', channels=1, latency=.2, callback=callback) as stream:
                 emit('ready', {'device': info['name'], 'samplerate': rate})
                 while not session['stop'].is_set():
                     if overflow.is_set(): raise RuntimeError('Microphone audio overflow. Try again.')

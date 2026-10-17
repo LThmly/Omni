@@ -63,3 +63,7 @@ The system's default input is used unless overridden. Audio is mono 16-bit PCM a
 For the earlier animation-only demonstration, explicitly use `sh sim/run.sh --speech demo`. The Pi retains that mode by default; enable microphone recognition there with `python3 firmware/shell.py --kiosk --speech vosk` after installing the requirements and model on the Pi. `--live` controls the app-generation backend independently of `--speech`.
 
 References: [Vosk microphone example](https://github.com/alphacep/vosk-api/blob/master/python/example/test_microphone.py), [official models](https://alphacephei.com/vosk/models).
+
+## Shared backends and deployment
+
+`sh sim/run.sh --backend gemini` calls the same Gemini client as the Pi using a local untracked `.env`. `--backend demo` keeps template generation local; `--backend stub` (or `--live`) uses the HTTP server. All replies go through the shared app controller, so generated apps, mutations, and messages appear on-screen. Final speech text remains visible after release. The Pi deployment workflow and commit verification are documented in [firmware/README.md](../firmware/README.md#edit-test-deploy).

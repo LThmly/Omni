@@ -292,6 +292,44 @@ class NativeUITest(unittest.TestCase):
         self.assertEqual(len(self.app.device.registry),5)
         self.assertIn('No speech detected',self.app.device.say)
 
+    def test_final_transcript_remains_visible_when_agent_returns_idle(self):
+        self.app.screen.submitted_text='Create a note taking app'
+        self.app.device.agent='idle'
+        self.app.draft=''
+        self.paint()
+        self.assertEqual(self.app.screen.transcript.text,'Create a note taking app')
+        self.app.on_down(VOICE.center)
+        self.assertEqual(self.app.screen.submitted_text,'')
+        self.paint()
+        self.assertEqual(self.app.screen.transcript.text,'')
+
+    def test_direct_gemini_reply_creates_and_selects_app_through_shared_flow(self):
+        self.app.backend='gemini';self.app.live=True
+        proposal={'op':'propose','app':{'id':'voice_list','title':'Voice list','module':'checklist',
+                  'state':{'cursor':0,'items':[{'label':'Milk','checked':False}]}}}
+        with patch('threading.Thread') as worker:
+            self.app.send('Create a shopping list')
+        payload,number=worker.call_args.kwargs['args']
+        self.assertEqual(payload['registry'],[])
+        with patch('cloud.try_turn.ask',return_value=proposal) as ask:
+            self.app.fetch_native(payload,number)
+        ask.assert_called_once_with('Create a shopping list',[],wav_base64=None)
+        with patch('native_ui.time.monotonic',return_value=self.app.pending['due']+1):self.app.poll()
+        self.assertTrue(self.app.screen.launcher)
+        self.assertEqual(self.app.device.registry[self.app.screen.selection]['id'],'voice_list')
+
+    def test_direct_gemini_errors_are_visible_and_keep_transcript(self):
+        from cloud.try_turn import TurnError
+        self.app.backend='gemini';self.app.live=True
+        with patch('threading.Thread') as worker:self.app.send('Make a timer')
+        payload,number=worker.call_args.kwargs['args']
+        with patch('cloud.try_turn.ask',side_effect=TurnError('Could not reach Gemini.')):
+            self.app.fetch_native(payload,number)
+        with patch('native_ui.time.monotonic',return_value=self.app.pending['due']+1):self.app.poll()
+        self.assertEqual(self.app.device.say,'Could not reach Gemini.')
+        self.assertEqual(self.app.screen.submitted_text,'Make a timer')
+        self.assertEqual(len(self.app.device.registry),5)
+
     def test_pi_orientation_uses_same_touch_targets(self):
         for turn in ('right','left','none'):
             size=(800,480) if turn!='none' else (480,800)

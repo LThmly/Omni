@@ -19,15 +19,15 @@ Claim a lane with a branch named after it: `firmware`, `sim`, `cloud`, `bringup`
 ## How a turn fits together
 
 ```
-touch PTT hold  → wav on device
+touch PTT hold  → local Vosk transcript (or recorded wav)
                 → POST /v1/turn  { text or wav, registry }
                 → { op: propose | mutate | say }
                 → shell saves JSON and paints the phone
 ```
 
-Touch interactions (`tap`, `scroll/swipe`, `toggle`, `inc`, `dec`) stay on the device and use the same actions as `mutate`. The simulator sends `text` instead of a wav, so UI work does not need the microphone.
+Touch interactions (`tap`, `scroll/swipe`, `toggle`, `inc`, `dec`) stay on the device and use the same actions as `mutate`. Both simulator and Pi support local Vosk recognition and typed requests; scripted speech previews remain available with `--speech demo`.
 
-`propose` includes the whole app. The shell shows the confirmation buttons (`[ Yes, create it ]` / `[ Cancel ]`), and a direct tap saves it. That second step does not call the model again.
+`propose` includes the whole app. The pygame controller saves it and selects it on the app wheel. `mutate` updates the app; `say` appears on the main screen. Use `--backend gemini` for direct Gemini calls or `--backend stub` for the HTTP path.
 
 ## Run the integration stub
 
@@ -43,3 +43,5 @@ The phone is a pygame window, 480×800. The simulator and Pi share the same pyga
 ## Demo modules
 
 `checklist`, `scoreboard`, and `progress` cover the three scripts. `key_value` is spare. Specs are in [`contract/modules/`](contract/modules/).
+
+Deploy committed source to the Pi with `python3 firmware/deploy.py omni@100.124.54.78 --backend gemini`; see [the shared workflow](firmware/README.md#edit-test-deploy). The deployment records its commit and file hashes; the Pi does not need a Git checkout.
