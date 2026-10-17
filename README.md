@@ -12,7 +12,7 @@ People can work in parallel. The shared surface is [`contract/`](contract/). Fir
 | Firmware shell | [`firmware/`](firmware/) | Boot the XIAO, then paint a fixture | A board. JSON is ready |
 | Board bring-up | [`firmware/bringup/`](firmware/bringup/) | Prove display, wheel, mic, and write down the real refresh time | A board |
 | E-ink simulator | [`sim/`](sim/) | Draw `contract/fixtures` at 400×300 | Nothing |
-| Cloud agent | [`cloud/`](cloud/) | `stub_server.py` speaks `/v1/turn` today. Replace the keyword matcher with the model | An API key, only for the real model |
+| Cloud agent | [`cloud/`](cloud/) | `stub_server.py` is the offline `/v1/turn`. `try_turn.py` tests the real model | An API key, only for `try_turn.py` |
 
 Claim a lane with a branch named after it: `firmware`, `sim`, `cloud`, `bringup`, `contract`.
 

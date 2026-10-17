@@ -4,6 +4,7 @@
 !.env.example
 .pio/
 .vscode/
+firmware/src/gemini_key.h
 __pycache__/
 *.pyc
 node_modules/
