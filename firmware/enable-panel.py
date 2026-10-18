@@ -17,6 +17,15 @@ I2S_LINES = [
     "dtparam=i2s=on",
     "dtoverlay=googlevoicehat-soundcard",
 ]
+# BCM GPIO 13 (physical pin 33) is the left PWM channel. GPIO 12 is the right.
+AUDIO_LINES = [
+    "dtparam=audio=on",
+    "dtoverlay=audremap,pins_12_13",
+]
+# BCM GPIO 21 (physical pin 40) stays an output driven low.
+GPIO_LOW_LINES = [
+    "gpio=21=op,dl",
+]
 
 
 def first_existing(paths):
@@ -38,7 +47,7 @@ def main():
     to_add = []
     if "dtoverlay=ads7846" not in text:
         to_add.append(OVERLAY)
-    for entry in I2S_LINES:
+    for entry in I2S_LINES + AUDIO_LINES + GPIO_LOW_LINES:
         if entry not in text:
             to_add.append(entry)
 

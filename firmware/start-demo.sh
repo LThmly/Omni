@@ -24,6 +24,12 @@ if [ -r "$HOME/.omni/audio-device" ]; then
   set -- "$@" --audio-device "$(cat "$HOME/.omni/audio-device")"
 fi
 
+if command -v pinctrl >/dev/null 2>&1; then
+  pinctrl set 21 op dl || true
+elif command -v raspi-gpio >/dev/null 2>&1; then
+  raspi-gpio set 21 op dl || true
+fi
+
 if [ "$BACKEND" = stub ] && ! "$PYTHON" -c 'import socket; socket.create_connection(("127.0.0.1", 8787), 1).close()' 2>/dev/null; then
   "$PYTHON" "$ROOT/cloud/stub_server.py" >> "$HOME/.omni/stub.log" 2>&1 &
 fi

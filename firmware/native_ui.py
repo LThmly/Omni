@@ -17,6 +17,7 @@ from local_commands import calculate, theme_command, match_command
 from transcript import TranscriptAnimator
 from contract.runtime import ContractError, validate_app, validate_turn, apply_operations, fields, message, preview_navigation
 from contract.legacy import to_composed
+from speaker import speak
 
 BUILTINS = (
     ('omni', 'omni', 'home'), ('settings', 'settings', 'settings'),
@@ -680,13 +681,13 @@ class NativeApp(legacy.App):
             else:result=message('This is the offline preview. Enable Gemini for answers.')
         else:result=pending['result']
         if isinstance(result,Exception):
-            self.device.agent='idle';self.device.say=str(result);return
+            self.device.agent='idle';self.device.say=str(result);speak(str(result));return
         try:validate_turn(result,self.device.registry)
         except (ContractError,TypeError):
             self.device.agent='idle';self.device.say='The response could not be used. Please try again.'
-            return
+            speak(self.device.say);return
         self.device.last_turn=copy.deepcopy(result)
-        self.device.agent='idle';self.device.say=result['say']
+        self.device.agent='idle';self.device.say=result['say'];speak(result['say'])
         self.device.save(self.store)
         self.deferred_effect=pending.get('effect')
         if self.deferred_effect or result['op'] in ('navigate','propose','mutate'):

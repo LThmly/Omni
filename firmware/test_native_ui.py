@@ -2,6 +2,7 @@
 import os
 os.environ.setdefault('SDL_VIDEODRIVER','dummy')
 os.environ.setdefault('SDL_AUDIODRIVER','dummy')
+os.environ['OMNI_SPEAK']='0'
 import tempfile
 import json
 import unittest

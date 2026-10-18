@@ -56,7 +56,16 @@ sh firmware/demo.sh --backend demo
 sh firmware/demo.sh --backend stub
 ```
 
-For Gemini, keep `GEMINI_API_KEY` in the Pi's untracked `~/Omni/.env`; see [cloud/README.md](../cloud/README.md). Both simulator and Pi support `--backend gemini`; `--live` remains an alias for `--backend stub` when launching `phone.py`/`sim/run.sh`. Replies are logged and applied through the same UI flow: `propose` adds and selects an app, `mutate` updates it, `say` appears on the main screen, and `navigate` opens the requested page. The configured preview wait applies only to the demo backend; real backends stop the waiting animation as soon as a response or error arrives. Backend errors also appear on-screen. When waiting ends, the logo arrows ease back to their default lengths over 280 ms; reduced motion restores them immediately.
+For Gemini, keep `GEMINI_API_KEY` in the Pi's untracked `~/Omni/.env`; see [cloud/README.md](../cloud/README.md). A validated reply's `say` line is also spoken. ElevenLabs (`eleven_flash_v2_5`, voice `ELEVENLABS_VOICE_ID`) returns 22.05 kHz PCM, and `aplay` plays it on the PWM speaker. GPIO 13, physical pin 33, is the left channel; the same audio is copied to GPIO 12 so a speaker on either pin is audible. Set `ELEVENLABS_API_KEY` in that same `.env`.
+
+`firmware/demo.sh` adds `dtoverlay=audremap,pins_12_13` and reboots once so analog audio leaves the headphone jack and comes out on those pins. Check the speaker before using a voice:
+
+```sh
+python3 firmware/speaker.py --beep
+python3 firmware/speaker.py --say "Hello from Omni"
+```
+
+Both simulator and Pi support `--backend gemini`; `--live` remains an alias for `--backend stub` when launching `phone.py`/`sim/run.sh`. Replies are logged and applied through the same UI flow: `propose` adds and selects an app, `mutate` updates it, `say` appears on the main screen, and `navigate` opens the requested page. The configured preview wait applies only to the demo backend; real backends stop the waiting animation as soon as a response or error arrives. Backend errors also appear on-screen. When waiting ends, the logo arrows ease back to their default lengths over 280 ms; reduced motion restores them immediately.
 
 Settings persists theme, motion, text size, preview wait, clock format. Device apps/preferences live in `~/.omni/pi-ui/`; simulator data lives in `~/.omni/simulator/`. The old `~/.omni/registry.json` is preserved.
 

@@ -8,10 +8,11 @@
   - Touch: resistive XPT2046 on the GPIO header, over SPI
 - **Link:** Short HDMI cable from the Pi’s full-size HDMI port to the panel
 - **Power:** Official 5.1V / 2.5A micro-USB supply for the Pi. The panel takes 5V and ground from the 40-pin header
-- **Audio:** USB microphone, when that path is wired
+- **Audio in:** USB microphone, or the Voice HAT microphone
+- **Audio out:** Mono speaker on BCM GPIO 13 (physical pin 33), the left PWM channel, plus any ground pin
 - **Storage:** MicroSD with Raspberry Pi OS
 
-The panel board sits on the Pi’s 40-pin header. HDMI carries the picture. The header carries power and the touchscreen. The app does not claim any other GPIO. USB ports stay free for a microphone.
+The panel board sits on the Pi’s 40-pin header. HDMI carries the picture. The header carries power, the touchscreen, and the speaker. USB ports stay free for a microphone.
 
 ## Connect
 
