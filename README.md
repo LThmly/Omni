@@ -1,188 +1,172 @@
-<div align="center">
+<img src="assets/images/Omni_Banner.png" alt="OMNI" width="100%">
+<p align="center">
+    <a href="context/hardware.md"><img src="https://img.shields.io/badge/Hardware-Raspberry%20Pi%203B-c51a4a?style=for-the-badge&logo=raspberrypi&logoColor=white" alt="Hardware"></a>
+    <a href="cloud/try_turn.py"><img src="https://img.shields.io/badge/AI%20Engine-Gemini%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"></a>
+    <a href="firmware/speech.py"><img src="https://img.shields.io/badge/Speech-Vosk%20%2B%20ElevenLabs-FF6F00?style=for-the-badge" alt="Speech"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License"></a>
+</p>
+<hr>
 
-# OMNI
-### *The On-Demand Generative App Hardware Companion*
+> [!NOTE]
+> Ask Omni to generate an app, and it builds it for you in real time.
+> Speak again to change that app, ask a question, or navigate the UI.
 
-[![Simulator: Instant 60 FPS Desktop](https://img.shields.io/badge/Simulator-macOS%20%7C%20Linux%20%7C%20Windows-blueviolet?style=for-the-badge&logo=python&logoColor=white)](sim/README.md)
-[![Hardware: Raspberry Pi 3B](https://img.shields.io/badge/Hardware-Raspberry%20Pi%203B-c51a4a?style=for-the-badge&logo=raspberrypi&logoColor=white)](context/hardware.md)
-[![AI Engine: Google Gemini Flash](https://img.shields.io/badge/AI%20Engine-Gemini%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white)](cloud/try_turn.py)
-[![Speech: On-Device Vosk + ElevenLabs](https://img.shields.io/badge/Speech-Vosk%20%2B%20ElevenLabs-FF6F00?style=for-the-badge)](firmware/speech.py)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+## What can Omni do?
 
-<br/>
+<table align="center">
+    <tr>
+        <td align="center" width="240"><b>01. Voice Navigation</b></td>
+        <td align="center" width="240"><b>02. Kinetic Wheel Browsing</b></td>
+        <td align="center" width="240"><b>05. Generative App Genesis</b></td>
+    </tr>
+    <tr>
+        <td align="center"><img src="assets/images/01_voice_navigation.gif" alt="Omni Voice Navigation" width="240"></td>
+        <td align="center"><img src="assets/images/02_wheel_browsing.gif" alt="Omni Kinetic Wheel Browsing" width="240"></td>
+        <td align="center"><img src="assets/images/05_generate_flashcards.gif" alt="Omni Generative App Genesis" width="240"></td>
+    </tr>
+    <tr>
+        <td align="center"><sub><i>Push-to-talk voice navigation</i></sub></td>
+        <td align="center"><sub><i>Rotary kinetic launcher wheel</i></sub></td>
+        <td align="center"><sub><i>Dynamic micro-app compilation</i></sub></td>
+    </tr>
+</table>
 
-<img src="assets/images/Omni_Banner.png" alt="OMNI Banner" width="100%" style="border-radius: 8px;" />
+## System architecture
 
-**Omni** bridges the physical and digital divide: a dedicated handheld device that **dynamically synthesizes, compiles, and runs bespoke tactile micro-apps the instant you speak.**
+Vosk turns speech into text on the device. Omni firmware sends that text and the contract to Gemini, and one structured turn comes back. ElevenLabs speaks the line. The simulator runs that same firmware before a feature ships.
 
-<br/>
+```mermaid
+flowchart LR
+    subgraph device["Raspberry Pi"]
+        direction TB
+        vosk["<b>Vosk</b><br/><i>On-device AI ASR</i>"]
+        omni["<b>Omni firmware</b><br/><i>Runs the apps</i>"]
+        vosk --> omni
+    end
+    subgraph gemini["Gemini"]
+        direction TB
+        decide["<b>Decisions</b><br/><i>What was asked</i>"]
+        apps["<b>Generating apps</b><br/><i>A structured turn</i>"]
+        decide --> apps
+    end
+    xi["<b>ElevenLabs</b><br/><i>Cloud AI text-to-speech</i>"]
+    sim["<b>Testing layer</b><br/><i>Same firmware, before the device</i>"]
 
-| **01. Voice Navigation** | **02. Kinetic Wheel Browsing** | **05. Generative App Genesis** |
-| :---: | :---: | :---: |
-| <img src="assets/images/01_voice_navigation.gif" alt="Omni Voice Navigation" width="100%" style="border-radius: 8px;" /> | <img src="assets/images/02_wheel_browsing.gif" alt="Omni Kinetic Wheel Browsing" width="100%" style="border-radius: 8px;" /> | <img src="assets/images/05_generate_flashcards.gif" alt="Omni Generative App Genesis" width="100%" style="border-radius: 8px;" /> |
-| <sub><em>Push-to-talk voice navigation</em></sub> | <sub><em>Rotary kinetic launcher wheel</em></sub> | <sub><em>Dynamic micro-app compilation</em></sub> |
+    omni --> decide
+    apps --> omni
+    omni --> xi
+    xi --> omni
+    sim -.-> omni
+```
 
-<br/>
+## AI contract
 
-[**Current Platform & Features**](#current-platform--features) • [**Custom Speaker Hardware**](#custom-speaker-hardware) • [**Screen Simulator**](#the-screen-simulator) • [**Design Process & E-Ink**](#design-process--the-e-ink-prototype)
+A language model answers differently every time. The contract makes every reply a fixed shape, so the firmware follows the operation instead of the wording.
 
-</div>
+```json
+{
+  "op": "mutate",
+  "say": "Point for Logan.",
+  "actions": [{ "action": "increment", "target": "logan", "amount": 1 }]
+}
+```
 
----
+The sentence can change. The operation is what runs. The schema is the [contract](contract/README.md).
 
-## Current Platform & Features
+## AI reasoning
 
-Omni runs a custom, hardware-accelerated **60 FPS portrait interface (480×800)** rotated natively onto an 800×480 landscape display. It combines responsive on-device physical computing with generative cloud intelligence to deliver real-time tactile micro-apps.
-
-### Hardware Architecture & Stack
+Gemini decides what was asked before it answers. The same words can mean a new app, a change to one already on the device, a page to open, or a question.
 
 ```mermaid
 flowchart TD
-    LCD["5'' 800×480 HDMI LCD<br/>(XPT2046 Resistive Touch)"]
-    MIC["Adafruit 6049 (ICS-43434)<br/>I2S Digital MEMS Microphone"]
-    PI["Raspberry Pi 3 Model B<br/>BCM2837 SoC @ 1.2GHz"]
-    SPK["TIP120 Darlington Driver<br/>8Ω Dynamic Speaker"]
-
-    LCD <-->|"HDMI (Video: 800×480)<br/>SPI (Touch: Pins 19, 21, 22, 23, 26)"| PI
-    MIC -->|"I2S Audio In<br/>Pins 12, 35, 38"| PI
-    PI -->|"Hardware PWM1 Audio Out<br/>Physical Pin 33"| SPK
+    ask[User asks] --> intent[Classify intent]
+    intent --> create[Generate an app]
+    intent --> update[Change an app]
+    intent --> nav[Open a page]
+    intent --> say[Answer in words]
 ```
 
-#### Component Bill of Materials (BOM)
+## Simulator
 
-| Component | Specification | Role in Omni | Connection / Interface |
-| :--- | :--- | :--- | :--- |
-| **Compute Board** | **Raspberry Pi 3 Model B** (Quad-Core 1.2GHz, 1GB RAM) | Central operating system, ASR, Pygame UI, audio pipeline | Core Controller |
-| **Display Panel** | **5.0" 800×480 HDMI LCD** with XPT2046 controller | Touchscreen portrait interface (rotated 90° to 480×800) | Full-size HDMI + SPI (Pins 19, 21, 22, 23, 26) |
-| **Microphone** | **Adafruit 6049 (ICS-43434)** I2S MEMS Microphone | Studio-quality digital push-to-talk voice capture | I2S Hardware Bus (Pins 1, 6, 12, 35, 38) |
-| **Audio Output** | **8Ω 2-Wire Dynamic Speaker** + **TIP120 Darlington Transistor** | Text-to-speech voice playback & tactile UI chimes | BCM Hardware PWM1 (Physical Pin 33) |
-| **Snubber Diode** | **1N4001** Flyback Diode | Absorbs inductive kickback from the voice coil | Parallel with speaker terminals |
-| **Power Supply** | Official 5.1V / 2.5A Micro-USB PSU | Clean power with zero voltage sagging | Micro-USB Port |
+<p align="center">
+    <a href="https://github.com/LThmly/Omni/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/LThmly/Omni/tests.yml?branch=main&style=for-the-badge&label=Build" alt="Build"></a>
+    <a href="sim/README.md"><img src="https://img.shields.io/badge/Simulator-macOS%20%7C%20Linux%20%7C%20Windows-blueviolet?style=for-the-badge&logo=python&logoColor=white" alt="Simulator"></a>
+</p>
 
-### Flagship User Journey: App Genesis
+<p align="center">
+    <img src="assets/images/simulator.png" alt="Omni simulator" width="480">
+</p>
 
-| Step | User Intent / Action | Omni On-Screen Response | System Operation |
-| :---: | :--- | :--- | :--- |
-| **1** | Hold the talk bar: *"Add milk to my shopping list."* | Waveform pulses live; on-device Vosk streams real-time speech transcription. | Voice audio is captured non-blocking via microphone. |
-| **2** | Release talk bar. | Dialog pops: *"You don't have a shopping list yet. Make one?"* with `[ Yes, create it ]` / `[ Cancel ]`. | Intent parsed; gap detected; Gemini proposes `checklist` app. |
-| **3** | Tap **`[ Yes, create it ]`** on the touchscreen. | The new Shopping List immediately mounts and slides into view with **Milk** as item #1. | App registered into local JSON registry. |
-| **4** | Later: *"Add eggs and iced coffee."* | Checked state persists; new items appear at the bottom. | Fast delta mutation applied to existing state. |
-| **5** | Tap rows directly with your finger. | Checkboxes strike through and toggle with tactile audio chimes. | Low-latency local touch input handled directly in pygame. |
+The laptop runs the same firmware as the Pi, so a feature is built and tried there before it ships to the device. The tests cover that firmware, speech, generated apps, speaker audio, and the contract. A malformed reply, or a failed Gemini call, is rejected instead of saved as an app.
 
----
-
-## Custom Speaker Hardware
-
-To deliver crisp audio responses, neural speech, and tactile UI feedback without bulky USB audio dongles or bus contention, Omni integrates a **custom discrete low-side audio driver** built around an NPN Darlington power transistor and the Raspberry Pi's hardware PWM engine.
-
-### Why a Custom Discrete Driver?
-* **Zero I2S Bus Contention:** The Raspberry Pi 3B's BCM2837 SoC features a single hardware PCM/I2S interface. Because our Adafruit 6049 digital microphone claims the I2S clock, word select, and data input pins, adding a standard I2S DAC (like a MAX98357A) would introduce bus contention or require complex clock sharing.
-* **Direct 5V Rail Power:** Driving an 8Ω speaker directly from GPIO pins is impossible—Pi GPIO pins are 3.3V with a strict 16 mA current ceiling. The discrete driver switches the high-capacity 5V rail directly across the speaker coil, delivering punchy, clear volume.
-* **Hardware Timer Precision:** Leverages the Pi’s dedicated hardware PWM1 block rather than CPU bit-banging, ensuring glitch-free audio synthesis even under 60 FPS UI rendering load.
-
-### Circuit Schematic
-
-<div align="center">
-  <img src="assets/images/circuit.png" alt="Custom Discrete TIP120 Speaker Driver Circuit Schematic" style="border-radius: 8px; margin: 12px 0;" />
-</div>
-
-### Theory of Operation
-1. **Base Current Limiting & Switching ($1\text{ k}\Omega$ + TIP120):**  
-   The $1\text{ k}\Omega$ base resistor limits current draw from GPIO 13 to safe microcontroller levels:
-   $$I_B \approx \frac{V_{GPIO} - V_{BE}}{R_B} = \frac{3.3\text{ V} - 1.4\text{ V}}{1000\,\Omega} \approx 1.9\text{ mA}$$
-   With the TIP120’s massive DC current gain ($h_{FE} \ge 1000$), $1.9\text{ mA}$ of base drive current easily saturates the transistor, sinking the full $\approx 625\text{ mA}$ required across the $8\,\Omega$ speaker load from 5V.
-2. **Inductive Kickback Suppression (1N4001 Flyback Diode):**  
-   A speaker voice coil is an inductor ($V_L = L \frac{di}{dt}$). When the transistor switches off rapidly at high PWM carrier frequencies, the collapsing magnetic field creates a reverse voltage spike that could exceed the transistor's breakdown rating. The **1N4001 diode** antiparallel to the coil safely recirculates and clamps this transient to $+5\text{V} + V_F$.
-3. **Kernel Audio Remapping (`dtoverlay=audremap`):**  
-   Instead of routing sound through the 3.5mm TRRS jack, the Pi's device tree overlay in `/boot/firmware/config.txt` remaps the analog audio PWM subsystem directly to the 40-pin GPIO header:
-   ```ini
-   dtoverlay=audremap,pins_12_13
-   ```
-   This exposes the left audio channel directly on BCM GPIO 13 (Pin 33) as standard ALSA hardware device `hw:CARD=Headphones,DEV=0`.
-4. **Software Synthesis & Speech Engine (`firmware/speaker.py`):**  
-   * **Envelope Smoothing:** Generates 16-bit signed PCM audio with cosine-tapered ramp envelopes (`tone(frequency, fade=0.02)`) to eliminate sharp DC popping at tone boundaries.
-   * **Dual-Channel Duplication:** Duplicates mono voice streams across both left (GPIO 13) and right channels so standard stereo ALSA players (`aplay`) play cleanly without channel-drop errors.
-   * **Cloud TTS Integration:** Streams neural speech directly from ElevenLabs over HTTP and pipes playback into the local PWM driver non-blocking via Python threads.
-
----
-
-## The Screen Simulator
-
-To eliminate hardware bottlenecks and accelerate iteration, we developed a standalone desktop screen simulator in tandem with our firmware. Rather than waiting on physical breadboarding, soldering, and Raspberry Pi bringup, we were able to build, test, and tune UI interactions, kinetic wheel physics, touch responsiveness, on-device Vosk speech recognition, and generative micro-app contracts concurrently with hardware engineering.
-
-Because the simulator shares the exact same 60 FPS Pygame runtime, component contracts, and event loops as the Raspberry Pi kiosk (`firmware/phone.py`), every screen feature and app developed in simulation ran on the physical hardware with zero translation layer.
-
-> [!TIP]
-> **Experience Omni without hardware!**  
-> The simulator lets you run and test the complete Omni touchscreen and voice experience directly on your computer:
-
-### Simulator Modes & Capabilities
-
-| Mode | Command | Description |
-| :--- | :--- | :--- |
-| **Offline Zero-Config** | `sh sim/run.sh` | Instant local demo generation. No internet, servers, or API keys needed. |
-| **Real Gemini Cloud AI** | `sh sim/run.sh --backend gemini` | Queries Google Gemini Flash live to synthesize new apps dynamically. *(Requires `GEMINI_API_KEY` in `.env`)* |
-| **Local Stub Server** | `sh sim/run.sh --backend stub` | Routes requests through the local HTTP turn server (`cloud/stub_server.py`) at `127.0.0.1:8787`. |
-| **Live Microphone Speech** | `sh sim/run.sh --speech vosk` | Offline speech recognition via on-device Vosk neural model. Run `.venv/bin/python sim/setup_speech.py` once to download the 40MB model. |
-
-### Simulator Controls
-* **Touch & Drag:** Click and drag with your mouse to scroll long lists or spin the kinetic wheel.
-* **Push-to-Talk:** Click and hold the bottom waveform bar to record speech; release to submit.
-* **Physical Keyboard:** Type any request directly and press `Enter`.
-* **On-Screen Keyboard:** Tap inputs to open the built-in virtual touch keyboard.
-* **App Reset:** Press `Ctrl+D` to restore default apps and clear generated scratchpads.
-* **Quit:** Press `Ctrl+Shift+Q` or `Escape`.
-
----
-
-## Design Process & The E-Ink Prototype
-
-Omni’s hardware engineering journey evolved through two distinct physical computing paradigms:
-
-```
-┌──────────────────────────────────────────────┐        ┌──────────────────────────────────────────────┐
-│       PHASE 1: THE E-INK PROTOTYPE           │        │       PHASE 2: THE FLAGSHIP TOUCH COMPANION  │
-│         (Branch: origin/eink-firmware)       │        │                   (Branch: main)             │
-├──────────────────────────────────────────────┤        ├──────────────────────────────────────────────┤
-│ • Seeed Studio XIAO ESP32-S3 Microcontroller │        │ • Raspberry Pi 3 Model B (Quad-Core 1.2GHz)  │
-│ • Ultra-low-power ambient E-Paper Display    │───────>│ • 5.0" 800×480 HDMI LCD (Rotated 480×800)    │
-│ • 5-Way Rotary Thumbwheel Switch Navigation  │        │ • XPT2046 Resistive Touchscreen Interface    │
-│ • Week-long battery life for ambient glance  │        │ • Adafruit 6049 I2S MEMS Mic + TIP120 Speaker│
-│ • Embedded C++ / PlatformIO firmware stack   │        │ • 60 FPS kinetic animations + neural TTS     │
-└──────────────────────────────────────────────┘        └──────────────────────────────────────────────┘
+```sh
+sh sim/run.sh
 ```
 
-### The Original Ultra-Low-Power E-Ink Prototype
-*(Preserved in branch [`origin/eink-firmware`](https://github.com/LThmly/Omni/tree/eink-firmware))*
+## Hardware layout
 
-<div align="center">
-  <img src="assets/images/eink_omni.png" alt="E-Ink Omni Hardware Prototype" width="360" style="border-radius: 12px; margin: 16px 0;" />
-  <p><sub><em>The original Seeed Studio XIAO ESP32-S3 E-Paper prototype with tactile 5-way navigation thumbwheel</em></sub></p>
-</div>
+<p align="center">
+    <img src="assets/images/board_layout.png" alt="Raspberry Pi, display, microphone, and speaker" width="480">
+</p>
 
-Omni began with a vision for calm, zero-distraction ambient computing:
-* **Core Microcontroller:** **Seeed Studio XIAO ESP32-S3** with Wi-Fi and Bluetooth.
-* **Display:** High-contrast multi-bit **E-Paper (E-Ink) display**, readable in direct sunlight with zero backlight glare.
-* **Input:** A physical **5-way mechanical navigation thumbwheel switch** (`firmware/src/nav_switch.cpp`) providing tactile rotary scrolling, directional clicks, and press-to-select navigation without fingerprints on the screen.
-* **Battery Life:** True deep-sleep standby consuming microamps, running for days on a single LiPo cell.
-* **Codebase:** Native C++ built with PlatformIO (`firmware/src/eink_display.cpp`, `firmware/src/app_model.cpp`).
+The Pi, the 5" display, the microphone, and the speaker had to live in one handheld, so the shell is a top and bottom cover around that stack. The speaker is a small driver on the Pi's PWM pin, which leaves the I2S bus for the microphone.
 
-### Evolution to the Flagship Companion
-While the E-Ink form factor was ideal for glanceable static lists, generative on-demand micro-apps demanded fluid 60 FPS scrolling, live voice waveform feedback, and instant touch interactions. The physical thumbwheel mechanics from Phase 1 directly inspired our digital **Kinetic Launcher Wheel** in the flagship edition, combining physical synthesizer rotary ergonomics with a responsive touchscreen canvas.
+## Prototype
 
----
+<p align="center">
+    <img src="assets/images/eink.png" alt="E-paper Omni prototype" width="280">
+</p>
 
-## The Omni Team
+The first Omni was a smaller board: a Seeed XIAO ESP32-S3 and an e-paper panel. Partial refresh still left the screen too slow for the apps to feel real-time, so the display moved to the LCD. That firmware is on [eink-firmware](https://github.com/LThmly/Omni/tree/eink-firmware).
 
-Built with love by the Hackathon team:
+## Final design
 
-* **Cannon Spencer** — Audio Synthesis, TTS Pipeline & Cloud Turn Integration
-* **Logan Thomley** — Software Architecture, Component Contract, Pygame UI & Speech Integration
-* **Davis Lester** — Hardware Engineering, Audio Circuitry, Firmware & Pi Kernel Bringup
-* **Jason Iduyan** — 3D CAD, Rendering, and Printing, ESP32-S3 E-Ink Firmware
+<p align="center">
+    <img src="assets/images/final_circuit.jpg" alt="Finished Omni board" width="280">
+    <img src="assets/images/final.jpg" alt="Omni in its case" width="280">
+</p>
 
----
+The finished Omni is a Raspberry Pi 3 Model B, a 5" touch LCD, an I2S microphone, and a speaker on PWM. Vosk turns speech into text on the Pi, Gemini builds the app, and ElevenLabs says it back through the speaker.
 
-<div align="center">
-  <sub>Omni is open-source software licensed under the <a href="LICENSE">MIT License</a>.</sub>
-</div>
+## Check out Omni
+
+<p align="center">
+    <a href="TODO">Demo video</a>
+    &nbsp;·&nbsp;
+    <a href="https://devpost.com/software/omni-f362rd">Devpost</a>
+</p>
+
+## Team
+
+<table align="center">
+    <tr>
+        <td align="center" width="180">
+            <a href="https://github.com/cannon-spencer"><img src="https://github.com/cannon-spencer.png?size=80" width="40" height="40" alt="" style="border-radius: 50%;"></a>
+            <br>
+            <a href="https://github.com/cannon-spencer"><b>Cannon Spencer</b></a>
+        </td>
+        <td align="center" width="180">
+            <a href="https://github.com/LThmly"><img src="https://github.com/LThmly.png?size=80" width="40" height="40" alt="" style="border-radius: 50%;"></a>
+            <br>
+            <a href="https://github.com/LThmly"><b>Logan Thomley</b></a>
+        </td>
+        <td align="center" width="180">
+            <a href="https://github.com/Davis-Lester"><img src="https://github.com/Davis-Lester.png?size=80" width="40" height="40" alt="" style="border-radius: 50%;"></a>
+            <br>
+            <a href="https://github.com/Davis-Lester"><b>Davis Lester</b></a>
+        </td>
+        <td align="center" width="180">
+            <a href="https://github.com/code-jasoo"><img src="https://github.com/code-jasoo.png?size=80" width="40" height="40" alt="" style="border-radius: 50%;"></a>
+            <br>
+            <a href="https://github.com/code-jasoo"><b>Jason Iduyan</b></a>
+        </td>
+    </tr>
+</table>
+
+<p align="center">
+    <a href="https://xii.swamphacks.com/"><img src="assets/images/swamphacks-xii.png" alt="SwampHacks XII" width="40" height="40" style="vertical-align: middle;"></a>
+    &nbsp;&nbsp;
+    <a href="https://mlh.io/"><img src="assets/images/mlh.svg" alt="Major League Hacking" width="95" height="40" style="vertical-align: middle;"></a>
+    <br>
+    <sub>SwampHacks XII · <a href="https://mlh.io/">Major League Hacking</a></sub>
+</p>
