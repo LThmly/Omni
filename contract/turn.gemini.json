@@ -185,6 +185,9 @@
                                     },
                                     "checked": {
                                       "type": "boolean"
+                                    },
+                                    "icon": {
+                                      "type": "string"
                                     }
                                   }
                                 }
@@ -213,7 +216,11 @@
                           "type": {
                             "type": "string",
                             "enum": [
-                              "text"
+                              "text",
+                              "callout",
+                              "hero_banner",
+                              "accordion",
+                              "summary_footer"
                             ]
                           },
                           "id": {
@@ -227,6 +234,12 @@
                               "string",
                               "null"
                             ]
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "on_change": {
+                            "type": "string"
                           }
                         }
                       },
@@ -244,7 +257,14 @@
                           "type": {
                             "type": "string",
                             "enum": [
-                              "number"
+                              "number",
+                              "stepper",
+                              "tally_pad",
+                              "unit_converter",
+                              "randomizer",
+                              "timer",
+                              "pacer",
+                              "number_input"
                             ]
                           },
                           "id": {
@@ -257,6 +277,12 @@
                             "type": "string"
                           },
                           "unit": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "on_change": {
                             "type": "string"
                           }
                         }
@@ -276,7 +302,13 @@
                           "type": {
                             "type": "string",
                             "enum": [
-                              "progress"
+                              "progress",
+                              "bar_gauge",
+                              "arc_gauge",
+                              "split_bar",
+                              "delta_card",
+                              "quick_chips",
+                              "xy_pad"
                             ]
                           },
                           "id": {
@@ -292,6 +324,12 @@
                             "type": "number"
                           },
                           "unit": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "on_change": {
                             "type": "string"
                           }
                         }
@@ -320,6 +358,12 @@
                           },
                           "bind": {
                             "type": "string"
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "on_change": {
+                            "type": "string"
                           }
                         }
                       },
@@ -336,7 +380,21 @@
                           "type": {
                             "type": "string",
                             "enum": [
-                              "list"
+                              "list",
+                              "segmented",
+                              "stat_grid",
+                              "tag_chips",
+                              "inventory_list",
+                              "habit_grid",
+                              "key_value_log",
+                              "bar_chart",
+                              "data_table",
+                              "matrix_2x2",
+                              "date_strip",
+                              "phase_bar",
+                              "timeline_steps",
+                              "deck_card",
+                              "tabs"
                             ]
                           },
                           "id": {
@@ -346,6 +404,12 @@
                             "type": "string"
                           },
                           "bind": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "on_change": {
                             "type": "string"
                           }
                         }
@@ -374,6 +438,12 @@
                           },
                           "bind": {
                             "type": "string"
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "on_change": {
+                            "type": "string"
                           }
                         }
                       },
@@ -390,7 +460,8 @@
                           "type": {
                             "type": "string",
                             "enum": [
-                              "button"
+                              "button",
+                              "confirm_button"
                             ]
                           },
                           "id": {
@@ -401,6 +472,129 @@
                           },
                           "action": {
                             "type": "string"
+                          },
+                          "icon": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "type",
+                          "id",
+                          "label",
+                          "bind",
+                          "player",
+                          "opponent",
+                          "wins",
+                          "losses",
+                          "draws",
+                          "choices"
+                        ],
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "choice_game"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "bind": {
+                            "type": "string"
+                          },
+                          "player": {
+                            "type": "string"
+                          },
+                          "opponent": {
+                            "type": "string"
+                          },
+                          "wins": {
+                            "type": "string"
+                          },
+                          "losses": {
+                            "type": "string"
+                          },
+                          "draws": {
+                            "type": "string"
+                          },
+                          "choices": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "id",
+                                "label",
+                                "icon",
+                                "beats"
+                              ],
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "icon": {
+                                  "type": "string"
+                                },
+                                "beats": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "on_change": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "type",
+                          "id",
+                          "icon",
+                          "label",
+                          "size"
+                        ],
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "illustration"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "string",
+                            "enum": [
+                              "small",
+                              "medium",
+                              "large"
+                            ]
                           }
                         }
                       }
@@ -463,6 +657,9 @@
                                     },
                                     "checked": {
                                       "type": "boolean"
+                                    },
+                                    "icon": {
+                                      "type": "string"
                                     }
                                   }
                                 }
@@ -593,9 +790,665 @@
                             "type": "string"
                           }
                         }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "action",
+                          "target",
+                          "operator",
+                          "left",
+                          "right"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "calculate"
+                            ]
+                          },
+                          "target": {
+                            "type": "string"
+                          },
+                          "operator": {
+                            "type": "string",
+                            "enum": [
+                              "add",
+                              "subtract",
+                              "multiply",
+                              "divide"
+                            ]
+                          },
+                          "left": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "field"
+                                ],
+                                "properties": {
+                                  "field": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "literal"
+                                ],
+                                "properties": {
+                                  "literal": {
+                                    "type": "number"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "right": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "field"
+                                ],
+                                "properties": {
+                                  "field": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "literal"
+                                ],
+                                "properties": {
+                                  "literal": {
+                                    "type": "number"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "action",
+                          "target",
+                          "source",
+                          "amount"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "append_record"
+                            ]
+                          },
+                          "target": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "amount": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "action",
+                          "target",
+                          "source"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "sum_records"
+                            ]
+                          },
+                          "target": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "action",
+                          "target",
+                          "choice",
+                          "player",
+                          "opponent",
+                          "wins",
+                          "losses",
+                          "draws",
+                          "choices"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "play_choice"
+                            ]
+                          },
+                          "target": {
+                            "type": "string"
+                          },
+                          "choice": {
+                            "type": "string"
+                          },
+                          "player": {
+                            "type": "string"
+                          },
+                          "opponent": {
+                            "type": "string"
+                          },
+                          "wins": {
+                            "type": "string"
+                          },
+                          "losses": {
+                            "type": "string"
+                          },
+                          "draws": {
+                            "type": "string"
+                          },
+                          "choices": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "id",
+                                "label",
+                                "icon",
+                                "beats"
+                              ],
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "icon": {
+                                  "type": "string"
+                                },
+                                "beats": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "action",
+                          "steps"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "batch"
+                            ]
+                          },
+                          "steps": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "action",
+                                    "target",
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "set"
+                                      ]
+                                    },
+                                    "target": {
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        },
+                                        {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "additionalProperties": false,
+                                            "required": [
+                                              "id",
+                                              "label",
+                                              "checked"
+                                            ],
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
+                                              },
+                                              "label": {
+                                                "type": "string"
+                                              },
+                                              "checked": {
+                                                "type": "boolean"
+                                              },
+                                              "icon": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "action",
+                                    "target",
+                                    "amount"
+                                  ],
+                                  "properties": {
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "increment"
+                                      ]
+                                    },
+                                    "target": {
+                                      "type": "string"
+                                    },
+                                    "amount": {
+                                      "type": "number"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "action",
+                                    "target"
+                                  ],
+                                  "properties": {
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "toggle"
+                                      ]
+                                    },
+                                    "target": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "action",
+                                    "target",
+                                    "source"
+                                  ],
+                                  "properties": {
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "append"
+                                      ]
+                                    },
+                                    "target": {
+                                      "type": "string"
+                                    },
+                                    "source": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "action",
+                                    "target"
+                                  ],
+                                  "properties": {
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "clear"
+                                      ]
+                                    },
+                                    "target": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "action",
+                                    "target"
+                                  ],
+                                  "properties": {
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "remove_checked"
+                                      ]
+                                    },
+                                    "target": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "action",
+                                    "target",
+                                    "operator",
+                                    "left",
+                                    "right"
+                                  ],
+                                  "properties": {
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "calculate"
+                                      ]
+                                    },
+                                    "target": {
+                                      "type": "string"
+                                    },
+                                    "operator": {
+                                      "type": "string",
+                                      "enum": [
+                                        "add",
+                                        "subtract",
+                                        "multiply",
+                                        "divide"
+                                      ]
+                                    },
+                                    "left": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "required": [
+                                            "field"
+                                          ],
+                                          "properties": {
+                                            "field": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "required": [
+                                            "literal"
+                                          ],
+                                          "properties": {
+                                            "literal": {
+                                              "type": "number"
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    },
+                                    "right": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "required": [
+                                            "field"
+                                          ],
+                                          "properties": {
+                                            "field": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "required": [
+                                            "literal"
+                                          ],
+                                          "properties": {
+                                            "literal": {
+                                              "type": "number"
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "action",
+                                    "target",
+                                    "source",
+                                    "amount"
+                                  ],
+                                  "properties": {
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "append_record"
+                                      ]
+                                    },
+                                    "target": {
+                                      "type": "string"
+                                    },
+                                    "source": {
+                                      "type": "string"
+                                    },
+                                    "amount": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "action",
+                                    "target",
+                                    "source"
+                                  ],
+                                  "properties": {
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "sum_records"
+                                      ]
+                                    },
+                                    "target": {
+                                      "type": "string"
+                                    },
+                                    "source": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "action",
+                                    "target",
+                                    "choice",
+                                    "player",
+                                    "opponent",
+                                    "wins",
+                                    "losses",
+                                    "draws",
+                                    "choices"
+                                  ],
+                                  "properties": {
+                                    "action": {
+                                      "type": "string",
+                                      "enum": [
+                                        "play_choice"
+                                      ]
+                                    },
+                                    "target": {
+                                      "type": "string"
+                                    },
+                                    "choice": {
+                                      "type": "string"
+                                    },
+                                    "player": {
+                                      "type": "string"
+                                    },
+                                    "opponent": {
+                                      "type": "string"
+                                    },
+                                    "wins": {
+                                      "type": "string"
+                                    },
+                                    "losses": {
+                                      "type": "string"
+                                    },
+                                    "draws": {
+                                      "type": "string"
+                                    },
+                                    "choices": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "id",
+                                          "label",
+                                          "icon",
+                                          "beats"
+                                        ],
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "label": {
+                                            "type": "string"
+                                          },
+                                          "icon": {
+                                            "type": "string"
+                                          },
+                                          "beats": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
                       }
                     ]
                   }
+                },
+                "pages": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "title",
+                      "components"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "components": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "icon": {
+                  "type": "string"
                 }
               }
             }
@@ -686,6 +1539,9 @@
                                 },
                                 "checked": {
                                   "type": "boolean"
+                                },
+                                "icon": {
+                                  "type": "string"
                                 }
                               }
                             }
@@ -794,6 +1650,613 @@
                       },
                       "target": {
                         "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "action",
+                      "target",
+                      "operator",
+                      "left",
+                      "right"
+                    ],
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "calculate"
+                        ]
+                      },
+                      "target": {
+                        "type": "string"
+                      },
+                      "operator": {
+                        "type": "string",
+                        "enum": [
+                          "add",
+                          "subtract",
+                          "multiply",
+                          "divide"
+                        ]
+                      },
+                      "left": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "field"
+                            ],
+                            "properties": {
+                              "field": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "literal"
+                            ],
+                            "properties": {
+                              "literal": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "right": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "field"
+                            ],
+                            "properties": {
+                              "field": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "literal"
+                            ],
+                            "properties": {
+                              "literal": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "action",
+                      "target",
+                      "source",
+                      "amount"
+                    ],
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "append_record"
+                        ]
+                      },
+                      "target": {
+                        "type": "string"
+                      },
+                      "source": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "action",
+                      "target",
+                      "source"
+                    ],
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "sum_records"
+                        ]
+                      },
+                      "target": {
+                        "type": "string"
+                      },
+                      "source": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "action",
+                      "target",
+                      "choice",
+                      "player",
+                      "opponent",
+                      "wins",
+                      "losses",
+                      "draws",
+                      "choices"
+                    ],
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "play_choice"
+                        ]
+                      },
+                      "target": {
+                        "type": "string"
+                      },
+                      "choice": {
+                        "type": "string"
+                      },
+                      "player": {
+                        "type": "string"
+                      },
+                      "opponent": {
+                        "type": "string"
+                      },
+                      "wins": {
+                        "type": "string"
+                      },
+                      "losses": {
+                        "type": "string"
+                      },
+                      "draws": {
+                        "type": "string"
+                      },
+                      "choices": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "id",
+                            "label",
+                            "icon",
+                            "beats"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "icon": {
+                              "type": "string"
+                            },
+                            "beats": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "action",
+                      "steps"
+                    ],
+                    "properties": {
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "batch"
+                        ]
+                      },
+                      "steps": {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "action",
+                                "target",
+                                "value"
+                              ],
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "set"
+                                  ]
+                                },
+                                "target": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "id",
+                                          "label",
+                                          "checked"
+                                        ],
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "label": {
+                                            "type": "string"
+                                          },
+                                          "checked": {
+                                            "type": "boolean"
+                                          },
+                                          "icon": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "action",
+                                "target",
+                                "amount"
+                              ],
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "increment"
+                                  ]
+                                },
+                                "target": {
+                                  "type": "string"
+                                },
+                                "amount": {
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "action",
+                                "target"
+                              ],
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "toggle"
+                                  ]
+                                },
+                                "target": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "action",
+                                "target",
+                                "source"
+                              ],
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "append"
+                                  ]
+                                },
+                                "target": {
+                                  "type": "string"
+                                },
+                                "source": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "action",
+                                "target"
+                              ],
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "clear"
+                                  ]
+                                },
+                                "target": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "action",
+                                "target"
+                              ],
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "remove_checked"
+                                  ]
+                                },
+                                "target": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "action",
+                                "target",
+                                "operator",
+                                "left",
+                                "right"
+                              ],
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "calculate"
+                                  ]
+                                },
+                                "target": {
+                                  "type": "string"
+                                },
+                                "operator": {
+                                  "type": "string",
+                                  "enum": [
+                                    "add",
+                                    "subtract",
+                                    "multiply",
+                                    "divide"
+                                  ]
+                                },
+                                "left": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "field"
+                                      ],
+                                      "properties": {
+                                        "field": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "literal"
+                                      ],
+                                      "properties": {
+                                        "literal": {
+                                          "type": "number"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                "right": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "field"
+                                      ],
+                                      "properties": {
+                                        "field": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "type": "object",
+                                      "additionalProperties": false,
+                                      "required": [
+                                        "literal"
+                                      ],
+                                      "properties": {
+                                        "literal": {
+                                          "type": "number"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "action",
+                                "target",
+                                "source",
+                                "amount"
+                              ],
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "append_record"
+                                  ]
+                                },
+                                "target": {
+                                  "type": "string"
+                                },
+                                "source": {
+                                  "type": "string"
+                                },
+                                "amount": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "action",
+                                "target",
+                                "source"
+                              ],
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "sum_records"
+                                  ]
+                                },
+                                "target": {
+                                  "type": "string"
+                                },
+                                "source": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "action",
+                                "target",
+                                "choice",
+                                "player",
+                                "opponent",
+                                "wins",
+                                "losses",
+                                "draws",
+                                "choices"
+                              ],
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "play_choice"
+                                  ]
+                                },
+                                "target": {
+                                  "type": "string"
+                                },
+                                "choice": {
+                                  "type": "string"
+                                },
+                                "player": {
+                                  "type": "string"
+                                },
+                                "opponent": {
+                                  "type": "string"
+                                },
+                                "wins": {
+                                  "type": "string"
+                                },
+                                "losses": {
+                                  "type": "string"
+                                },
+                                "draws": {
+                                  "type": "string"
+                                },
+                                "choices": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "id",
+                                      "label",
+                                      "icon",
+                                      "beats"
+                                    ],
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "icon": {
+                                        "type": "string"
+                                      },
+                                      "beats": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
                       }
                     }
                   }

@@ -56,6 +56,20 @@ class LocalCommandTest(unittest.TestCase):
                 self.assertEqual(self.match(phrase).effect,dict(kind='preference',key=key,value=value))
         self.assertEqual(self.prefs,DEFAULTS)
 
+    def test_theme_commands_are_symmetric_and_tolerate_observed_asr_errors(self):
+        for current in ('light','dark'):
+            self.prefs['theme']=current
+            for phrase,target in [('change to light mode','light'),('change to dark mode','dark'),
+                                  ('changed the theme to lighten mode','light'),
+                                  ('switch to dark mine','dark'),('switched to light mood','light'),
+                                  ('change the theme to lite mode','light')]:
+                with self.subTest(current=current,phrase=phrase):
+                    self.assertEqual(self.match(phrase).effect,dict(kind='preference',key='theme',value=target))
+        for phrase in ('What changed the theme to lighten mode', 'I changed to light mode',
+                       'Do not change to light mode','Change to lighten mode and open notes',
+                       'dark mine','light mood','Change my mind','Turn on the light'):
+            self.assertIsNone(match_command(phrase,self.prefs,self.registry),phrase)
+
     def test_time_and_date_answers_use_the_device_clock(self):
         self.assertEqual(self.match("What's the current time?").turn['say'],'It is 15:07.')
         self.prefs['clock24']=False

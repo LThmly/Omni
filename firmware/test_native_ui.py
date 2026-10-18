@@ -129,6 +129,7 @@ class NativeUITest(unittest.TestCase):
         else:self.assertEqual(self.app.device.app_id,expected)
 
     def test_hold_cancel_and_generated_app_selected_after_wait(self):
+        self.app.prefs['wait_seconds'] = 10
         self.app.on_down(VOICE.center)
         self.assertEqual(self.app.device.agent,'listening')
         self.app.cancel_press()
@@ -152,7 +153,6 @@ class NativeUITest(unittest.TestCase):
         self.open('settings');self.activate('setting',index=0)
         self.assertEqual(self.app.prefs['theme'],'light')
         self.assertEqual(self.app.phone.get_at((5,5))[:3],(255,255,255))
-        self.activate('setting',index=2);self.activate('setting',index=3)
         self.open('notes');self.activate('edit_notes')
         self.activate('key',text='hello');self.activate('key',text='newline');self.activate('key',text='world')
         self.activate('key',text='done')
@@ -162,10 +162,50 @@ class NativeUITest(unittest.TestCase):
         self.assertEqual(restored.device.find('notes')['state']['text'],'hello\nworld')
         self.assertEqual(restored.prefs['theme'],'light')
         self.assertEqual(restored.prefs['text_scale'],1.15)
-        self.assertEqual(restored.prefs['wait_seconds'],20)
+        self.assertEqual(restored.prefs['wait_seconds'],10)
         self.assertFalse(restored.prefs['clock24'])
         self.assertIsNone(restored.device.current())
         self.app.prefs['theme']='dark';self.paint()
+
+    def test_settings_delete_requires_confirmation_and_preserves_defaults_and_notes(self):
+        self.app.device.find('notes')['state']['text']='Keep my notes'
+        self.app.select_app(self.fixture('shopping.json'))
+        self.app.select_app(self.fixture('counter.json'))
+        self.open('settings')
+        delete=next(h for h in self.app.screen.hits if h.act=='setting' and h.index==2)
+        self.touch(delete,dx=6,dy=5)
+        self.assertTrue(self.app.screen.delete_apps_confirm)
+        self.assertEqual(len(self.app.device.registry),7)
+        self.touch(next(h for h in self.app.screen.hits if h.act=='delete_apps_cancel'))
+        self.assertFalse(self.app.screen.delete_apps_confirm)
+        self.assertEqual(len(self.app.device.registry),7)
+        self.activate('setting',index=2)
+        self.key(pygame.K_ESCAPE);self.paint()
+        self.assertFalse(self.app.screen.delete_apps_confirm)
+        self.assertEqual(self.app.device.current()['id'],'settings')
+        self.app.screen.component_timers['shopping:timer']={'running':True}
+        self.app.screen.choice_rounds['counter:game']={'started':0}
+        self.activate('setting',index=2)
+        self.assertFalse(any(h.act=='setting' for h in self.app.screen.hits))
+        self.touch(next(h for h in self.app.screen.hits if h.act=='delete_apps_confirm'),dx=5,dy=4)
+        self.assertEqual([a['id'] for a in self.app.device.registry],['omni','settings','notes','clock','calculator'])
+        self.assertEqual(self.app.device.find('notes')['state']['text'],'Keep my notes')
+        self.assertEqual(self.app.device.current()['id'],'settings')
+        self.assertFalse(self.app.screen.component_timers)
+        self.assertFalse(self.app.screen.choice_rounds)
+        restored=NativeApp('http://unused','none',False,self.store);self.addCleanup(restored.close)
+        self.assertEqual(len(restored.device.registry),5)
+        self.assertEqual(restored.device.find('notes')['state']['text'],'Keep my notes')
+
+    def test_settings_delete_is_disabled_when_empty_and_cannot_skip_confirmation(self):
+        self.open('settings')
+        self.assertFalse(any(h.act=='setting' and h.index==2 for h in self.app.screen.hits))
+        self.activate('setting',index=2)
+        self.assertFalse(self.app.screen.delete_apps_confirm)
+        self.app.select_app(self.fixture('shopping.json'));self.open('settings')
+        self.activate('delete_apps_confirm')
+        self.assertEqual(len(self.app.device.registry),6)
+        self.assertFalse(self.app.screen.delete_apps_confirm)
 
     def test_calculator_and_back_navigation(self):
         self.open('calculator')
@@ -196,9 +236,9 @@ class NativeUITest(unittest.TestCase):
         self.app.on_down((x,y));self.app.on_move((x-100,y+100));self.app.on_up((x,y))
         self.assertEqual(self.app.device.current()['id'],'settings')
 
-    def test_touch_settings_back_row_tolerates_finger_drift(self):
+    def test_touch_settings_back_tolerates_finger_drift(self):
         self.open('settings')
-        hit=next(h for h in self.app.screen.hits if h.act=='setting' and h.index==4)
+        hit=next(h for h in self.app.screen.hits if h.act=='back')
         x,y=hit.rect.center
         self.app.on_down((x,y));self.app.on_move((x+10,y+8));self.app.on_up((x+10,y+8))
         self.assertIsNone(self.app.device.current())
@@ -422,6 +462,28 @@ class NativeUITest(unittest.TestCase):
         self.assertEqual(self.app.prefs['theme'],'dark')
         self.assertEqual(self.app.phone.get_at((0,0))[:3],(0,0,0))
 
+    def test_observed_asr_theme_variants_apply_both_directions_without_api(self):
+        speech=Mock();speech.poll.return_value=[]
+        self.app.speech=speech;self.app.backend='gemini';self.app.live=True
+        for number,phrase,target in [(1,'switch to dark mine','dark'),
+                                     (2,'changed the theme to lighten mode','light'),
+                                     (3,'change to dark mode','dark'),
+                                     (4,'change to light mode','light')]:
+            with self.subTest(phrase=phrase):
+                speech.start.return_value=number
+                with patch('pygame.time.get_ticks',side_effect=[1000,1600]):
+                    self.app.on_down(VOICE.center);self.app.on_up(VOICE.center)
+                speech.poll.return_value=[(number,'final',{'text':phrase})]
+                with patch('threading.Thread') as thread:
+                    self.app.poll();thread.assert_not_called()
+                self.assertEqual(self.app.deferred_effect['value'],target)
+                speech.poll.return_value=[]
+                self.finish_response();self.paint()
+                self.assertEqual(self.app.prefs['theme'],target)
+                self.assertEqual(json.loads(self.app.preferences_path.read_text())['theme'],target)
+                color=(255,255,255) if target=='light' else (0,0,0)
+                self.assertEqual(self.app.phone.get_at((0,0))[:3],color)
+
     def test_theme_command_works_offline_and_escape_cancels_it(self):
         self.app.send('Enable light mode');self.app.poll()
         self.assertEqual(self.app.device.say,'Switching to light mode.')
@@ -433,9 +495,7 @@ class NativeUITest(unittest.TestCase):
 
     def test_expanded_local_preferences_apply_after_response_and_persist(self):
         self.app.backend='gemini';self.app.live=True
-        for phrase,key,value in [('Make the font bigger','text_scale',1.15),
-                                 ('Use twelve hour time','clock24',False),
-                                 ('Set preview wait to three seconds','wait_seconds',3),
+        for phrase,key,value in [('Use twelve hour time','clock24',False),
                                  ('Turn animations off','motion',False)]:
             with self.subTest(phrase=phrase),patch('threading.Thread') as thread:
                 self.app.send(phrase);self.app.poll()
@@ -523,23 +583,37 @@ class NativeUITest(unittest.TestCase):
         restored.screen.paint(restored.phone,restored.device,1400,'Private request')
         self.assertEqual(restored.screen.transcript.text,'Here is your response')
 
-    def test_response_keeps_latest_lines_and_settings_back_is_accessible(self):
+    def test_long_response_stays_on_one_line_and_settings_back_is_accessible(self):
         self.app.device.say='A'*200+' latest words'
         self.paint();self.paint(400);self.paint(400)
         frames=list(self.app.screen.transcript.frames(self.ticks))
-        visible=[word for word,x,y,alpha in frames if 0<=y<66 and alpha>0]
-        self.assertEqual(visible[-2:],['latest','words'])
-        self.assertGreater(self.app.screen.transcript.scroll(self.ticks),0)
+        self.assertTrue(self.app.screen.transcript.text.endswith('…'))
+        self.assertEqual(len({y for word,x,y,alpha in frames if alpha>0}),1)
+        self.assertLessEqual(self.app.screen.font(round(22*self.app.prefs['text_scale'])).size(self.app.screen.transcript.text)[0],408)
+        self.assertEqual(self.app.screen.transcript.scroll(self.ticks),0)
         self.open('settings')
         settings=[hit for hit in self.app.screen.hits if hit.act=='setting']
-        self.assertEqual(len(settings),5)
+        self.assertEqual(len(settings),2)  # Delete is disabled with no generated apps.
         self.assertTrue(all(hit.rect.bottom<800 for hit in settings))
-        self.app.screen.setting_cursor=4
+        self.app.screen.setting_cursor=2
         self.app.scroll_input(1)
         self.assertEqual(self.app.screen.setting_cursor,0)
-        self.activate('setting',index=4)
+        self.activate('back')
         self.assertIsNone(self.app.device.current())
         self.assertTrue(self.app.screen.launcher)
+
+    def test_shortened_response_still_finishes_before_app_creation(self):
+        self.app.backend='gemini';self.app.live=True
+        with patch('threading.Thread'):self.app.send('Create a counter')
+        turn=self.fixture('create-counter.json')['turn']
+        turn['say']='Your new counter application is ready to use with all of the requested controls.'
+        self.app.events.put((self.app.pending['number'],turn));self.app.poll();self.paint()
+        self.paint(500);self.paint(300);self.app.poll()
+        self.assertLessEqual(len(self.app.screen.response_target.split()),6)
+        self.assertEqual(len(self.app.device.registry),5)
+        self.assertIsNotNone(self.app.response_ready_at)
+        self.paint(1200);self.app.poll()
+        self.assertEqual(len(self.app.device.registry),6)
 
     def test_partial_demo_reveals_words_and_corrects_a_hypothesis(self):
         with patch('pygame.time.get_ticks',return_value=1000):self.app.on_down(VOICE.center)
@@ -577,6 +651,37 @@ class NativeUITest(unittest.TestCase):
         self.app.cancel_press()
         self.app.apply_speech_result({'partial':'stale'})
         self.assertEqual(self.app.screen.listening_text,'')
+
+    def test_empty_vosk_hypotheses_do_not_blink_or_drop_the_current_phrase(self):
+        self.app.on_down(VOICE.center)
+        self.app.apply_speech_result({'partial':'add milk'})
+        self.app.apply_speech_result({'partial':''})
+        self.app.apply_speech_result({'text':''})
+        self.assertEqual(self.app.screen.listening_text,'add milk')
+        self.app.apply_speech_result({'text':'add milk'})
+        self.app.apply_speech_result({'partial':'to the list'})
+        self.app.apply_speech_result({'partial':''})
+        self.assertEqual(self.app.screen.listening_text,'add milk to the list')
+        self.app.apply_speech_result({'partial':'to my list'})
+        self.assertEqual(self.app.screen.listening_text,'add milk to my list')
+
+    def test_audio_draining_after_release_updates_preview_until_authoritative_final(self):
+        speech=Mock();speech.start.return_value=19;speech.poll.return_value=[]
+        self.app.speech=speech
+        with patch('pygame.time.get_ticks',side_effect=[1000,1600]):
+            self.app.on_down(VOICE.center)
+            self.app.apply_speech_result({'partial':'add mill'})
+            self.app.on_up(VOICE.center)
+        speech.poll.return_value=[(18,'partial',{'partial':'stale session'}),
+                                  (19,'segment',{'text':'add milk'}),
+                                  (19,'partial',{'partial':'to my list'})]
+        self.app.poll();self.paint()
+        self.assertEqual(self.app.screen.submitted_text,'add milk to my list')
+        self.assertEqual(self.app.screen.transcript.text,'add milk to my list')
+        self.assertIsNone(self.app.pending)
+        speech.poll.return_value=[(19,'final',{'text':'add milk to my shopping list'})]
+        self.app.poll()
+        self.assertEqual(self.app.pending['request'],'add milk to my shopping list')
 
     def test_partial_demo_custom_phrase_is_sent_and_displayed(self):
         self.app.prefs['motion']=False
@@ -688,6 +793,7 @@ class NativeUITest(unittest.TestCase):
         self.assertEqual(self.app.device.say,'Hello!')
 
     def test_demo_keeps_configured_preview_wait(self):
+        self.app.prefs['wait_seconds']=10
         with patch('native_ui.time.monotonic',return_value=100):self.app.send('Create a list')
         with patch('native_ui.time.monotonic',return_value=100.2):self.app.poll()
         self.assertEqual(self.app.device.agent,'thinking')

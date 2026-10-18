@@ -1,6 +1,6 @@
 """Streaming text stays stable while new/corrected words blend into place."""
 import unittest
-from transcript import TranscriptAnimator
+from transcript import TranscriptAnimator,short_response
 
 
 def measure(text):return len(text)*10
@@ -8,6 +8,16 @@ def measure(text):return len(text)*10
 
 class TranscriptTest(unittest.TestCase):
     def setUp(self):self.animator=TranscriptAnimator()
+
+    def test_short_responses_fit_one_line_and_preserve_brief_answers(self):
+        self.assertEqual(short_response('Opening settings.',measure),'Opening settings.')
+        for source in ('Many words in a long reply that should be kept concise.', 'W'*200,
+                       'First line\nSecond line\nThird line\nFourth line'):
+            text=short_response(source,measure,width=160)
+            self.assertLessEqual(measure(text),160)
+            self.assertLessEqual(len(text),48)
+            self.assertLessEqual(len(text.split()),6)
+            self.assertNotIn('\n',text)
 
     def update(self,text,now,**kwargs):
         self.animator.update(text,now,measure,**kwargs)
@@ -43,6 +53,17 @@ class TranscriptTest(unittest.TestCase):
         self.update('hello world',200)
         self.assertTrue(all(frame[3]==1 for frame in self.animator.frames(300)))
 
+    def test_new_partials_do_not_restart_unchanged_word_movement_or_scroll(self):
+        self.update('one two three four',0,width=80)
+        self.update('one two three four five',300,width=80)
+        scroll_started=self.animator.scroll_at
+        first=self.animator.words[0]
+        movement_started=first.moved_at
+        self.update('one two three four five six',350,width=80)
+        self.assertEqual(self.animator.scroll_at,scroll_started)
+        self.assertEqual(first.moved_at,movement_started)
+        self.assertEqual(self.animator.scroll(510),self.animator.scroll_to)
+
     def test_wrapping_scrolls_smoothly_and_keeps_latest_two_lines(self):
         self.update('one two',0,width=80)
         self.update('one two three four five six',300,width=80)
@@ -54,6 +75,14 @@ class TranscriptTest(unittest.TestCase):
         visible=[word for word,x,y,a in settled if 0<=y<54]
         self.assertEqual(visible,['four','five','six'])
         self.assertEqual(len({y for _,_,y,a in settled if 0<=y<54 and a>0}),2)
+
+    def test_speech_viewport_keeps_three_lines_and_scrolls_only_when_needed(self):
+        self.update('one two three four',0,width=80,visible_lines=3)
+        self.assertEqual(self.animator.scroll_to,0)
+        self.update('one two three four five six',300,width=80,visible_lines=3)
+        frames=list(self.animator.frames(650))
+        self.assertEqual(len({y for _,_,y,a in frames if 0<=y<81 and a>0}),3)
+        self.assertEqual([word for word,_,y,a in frames if 0<=y<81],['three','four','five','six'])
 
     def test_reduced_motion_skips_fade_movement_and_retired_words(self):
         self.update('add mill',0,animate=False)

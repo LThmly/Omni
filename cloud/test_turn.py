@@ -84,6 +84,9 @@ class TurnClientTest(unittest.TestCase):
             self.assertEqual(ask('Take me to settings',[]),turn)
         self.assertIn('navigate',json.dumps(captured['generationConfig']['responseJsonSchema']))
         self.assertIn('How do I open settings?',SYSTEM)
+        user=json.loads(captured['contents'][0]['parts'][0]['text'])
+        self.assertGreater(user['asset_catalog']['total_assets'],1000)
+        self.assertLessEqual(len(user['asset_catalog']['icons']),64)
 
 
 if __name__ == "__main__":

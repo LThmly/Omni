@@ -2,6 +2,21 @@
 from dataclasses import dataclass
 
 
+def short_response(text,measure,width=408):
+    """Keep replies to one readable line, even when a backend ignores brevity."""
+    original=' '.join(str(text).split())
+    words=original.split()[:6]
+    candidate=' '.join(words)
+    shortened=candidate!=original
+    while words and (len(candidate)+int(shortened)>48 or measure(candidate+('…' if shortened else ''))>width):
+        if len(words)==1:
+            candidate=candidate[:-1];shortened=True
+            if not candidate:break
+        else:
+            words.pop();candidate=' '.join(words);shortened=True
+    return candidate.rstrip(' ,;:')+('…' if shortened and candidate else '')
+
+
 def ease(progress):
     progress=max(0.0,min(1.0,progress))
     return 1-(1-progress)**3
@@ -54,9 +69,9 @@ class TranscriptAnimator:
         t=max(0.0,min(1.0,(now-word.born_at)/self.FADE_MS))
         return t*t*(3-2*t)
 
-    def update(self,text,now,measure,width=408,line_height=27,animate=True,align='left'):
+    def update(self,text,now,measure,width=408,line_height=27,animate=True,align='left',visible_lines=2):
         text=' '.join(text.split())
-        style=(width,line_height,align)
+        style=(width,line_height,align,visible_lines)
         if text==self.text and style==self.style and animate==self.animate:return
         old_scroll=self.scroll(now)
         # Word wrapping keeps existing prefixes fixed. Split oversized tokens so
@@ -100,18 +115,21 @@ class TranscriptAnimator:
         for i,(text_word,tx,ty) in enumerate(targets):
             if i in keep:
                 word=keep[i]
-                px,py=self.position(word,now)
-                word.old_x,word.old_y=px,py
-                word.x,word.y=tx,ty
-                word.moved_at=now
+                if (word.x,word.y)!=(tx,ty):
+                    px,py=self.position(word,now)
+                    word.old_x,word.old_y=px,py
+                    word.x,word.y=tx,ty
+                    word.moved_at=now
             else:
                 word=Word(text_word,tx,ty,tx,ty,now,now+min(fresh*18,72))
                 fresh+=1
             words.append(word)
+        scroll_to=max(0,y-line_height*(visible_lines-1))
+        if scroll_to!=self.scroll_to or animate!=self.animate:
+            self.scroll_from=old_scroll
+            self.scroll_to=scroll_to
+            self.scroll_at=now
         self.words=words;self.text=text;self.style=style;self.animate=animate
-        self.scroll_from=old_scroll
-        self.scroll_to=max(0,y-line_height)
-        self.scroll_at=now
 
     def settled(self,now):
         """True once the currently presented text has finished fading/moving."""
@@ -122,7 +140,7 @@ class TranscriptAnimator:
         return now>=max(ends)
 
     def frames(self,now):
-        """Word, x, y, opacity tuples in the two-line viewport."""
+        """Word, x, y, opacity tuples relative to the visible viewport."""
         self.retired=[word for word in self.retired if self.opacity(word,now)>.01]
         scroll=self.scroll(now)
         for word in self.retired+self.words:

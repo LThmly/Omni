@@ -185,7 +185,7 @@ def _speak(text):
             return
         voice = os.environ.get("ELEVENLABS_VOICE_ID", VOICE_ID).strip() or VOICE_ID
         model = os.environ.get("ELEVENLABS_MODEL", "eleven_flash_v2_5").strip() or "eleven_flash_v2_5"
-        play_wav(stereo_wav(fetch_speech(text, key, voice, model)))
+        play_wav(stereo_wav(amplify(fetch_speech(text, key, voice, model), speaker_gain())))
     except SpeakerError as error:
         print("Speaker: %s" % error, flush=True)
 
@@ -197,7 +197,7 @@ def drive_gpio_low(pin=21):
         ("raspi-gpio", ["set", str(pin), "op", "dl"]),
     ):
         binary = shutil.which(tool)
-        if not binary:
+        if not binary or not os.path.isfile(binary):
             continue
         subprocess.run([binary, *args], capture_output=True, timeout=3, check=False)
         return
@@ -214,6 +214,30 @@ def raise_volume(device):
             [mixer, "-c", card, "sset", control, "100%"],
             capture_output=True, timeout=3, check=False,
         )
+
+
+def speaker_gain():
+    """How much to boost speech. The pin cannot exceed the full-scale tone."""
+    raw = os.environ.get("SPEAKER_GAIN", "1").strip()
+    try:
+        gain = float(raw)
+    except ValueError:
+        gain = 1
+    return min(16.0, max(0.1, gain))
+
+
+def amplify(mono, gain):
+    if len(mono) % 2:
+        mono = mono[:-1]
+    samples = array.array("h")
+    samples.frombytes(mono)
+    if gain == 1:
+        return samples.tobytes()
+    boosted = array.array("h")
+    for sample in samples:
+        value = int(sample * gain)
+        boosted.append(max(-32767, min(32767, value)))
+    return boosted.tobytes()
 
 
 def stereo_pcm(mono):

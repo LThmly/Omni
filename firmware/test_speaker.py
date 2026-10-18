@@ -37,6 +37,11 @@ class SpeakerTest(unittest.TestCase):
         peak = max(abs(int.from_bytes(pcm[i:i + 2], "little", signed=True)) for i in range(0, len(pcm), 2))
         self.assertGreater(peak, 30000)
 
+    def test_speech_boost_reaches_full_scale_and_clips(self):
+        boosted = speaker.amplify(b"\x00\x01\xff\x7f", 8)
+        self.assertEqual(boosted[:2], b"\x00\x08")
+        self.assertEqual(boosted[2:], b"\xff\x7f")
+
     def test_stereo_copies_the_sample_onto_gpio_13(self):
         wav_bytes = speaker.stereo_wav(b"\x01\x00\x02\x00")
         with wave.open(io.BytesIO(wav_bytes)) as handle:
@@ -65,7 +70,7 @@ class SpeakerTest(unittest.TestCase):
         def capture(wav_bytes, device=None):
             played["wav"] = wav_bytes
 
-        with patch.dict(os.environ, {"ELEVENLABS_API_KEY": "test-key", "ELEVENLABS_VOICE_ID": "voice"}, clear=False):
+        with patch.dict(os.environ, {"ELEVENLABS_API_KEY": "test-key", "ELEVENLABS_VOICE_ID": "voice", "SPEAKER_GAIN": "1"}, clear=False):
             with patch.object(speaker, "load_env"):
                 with patch.object(speaker.shutil, "which", return_value="/usr/bin/aplay"):
                     with patch.object(speaker.urllib.request, "urlopen", opener):
