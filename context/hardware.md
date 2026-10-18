@@ -1,61 +1,58 @@
-# Hardware
+# Hardware Context: Parts, Wiring & Pinout
 
-## Parts
+## Parts List
 
-- **Computer:** Raspberry Pi 3 Model B
-- **Display:** 5" 800×480 HDMI LCD with an XPT2046 touch controller
-  - Picture: HDMI, 800×480
-  - Touch: resistive XPT2046 on the GPIO header, over SPI
-- **Link:** Short HDMI cable from the Pi’s full-size HDMI port to the panel
-- **Power:** Official 5.1V / 2.5A micro-USB supply for the Pi. The panel takes 5V and ground from the 40-pin header
-- **Audio in:** USB microphone, or the Voice HAT microphone
-- **Audio out:** Mono speaker on BCM GPIO 13 (physical pin 33), the left PWM channel, plus any ground pin
-- **Storage:** MicroSD with Raspberry Pi OS
+- **Microcontroller:** Seeed Studio XIAO ESP32S3 Plus (16MB Flash, 8MB PSRAM, Wi-Fi 2.4GHz)
+- **Display Panel:** Adafruit 6382 (4.2" Tri-Color E-Ink Display – 400×300 Black/White/Red SSD1683)
+- **Display Driver:** Adafruit 4224 (eInk Breakout Friend)
+- **Microphone:** Adafruit 6049 (I2S MEMS Microphone Breakout – ICS-43434)
+- **Navigation Switch:** Same Sky TS43-135255-10-BK-200-SMT-TR (Up / Down / Push Thumbwheel Navigation Switch)
+- **Battery:** 3.7V 1200mAh LiPo Pouch Cell (603450)
+- **Power Switch:** SPDT Slide Switch (in-line on battery positive line)
+- **Wiring:** 24–28 AWG harvested from USB cable
 
-The panel board sits on the Pi’s 40-pin header. HDMI carries the picture. The header carries power, the touchscreen, and the speaker. USB ports stay free for a microphone.
+---
 
-## Connect
+## Wiring & Pinout List
 
-1. Seat the display on the 40-pin header.
-2. HDMI from the Pi’s HDMI port into the display. That port is `HDMI-A-1`.
-3. Power the Pi.
+Wire to the silkscreen pad (`D0`, `D1`, `D2`, `D3`, `D4`, `D5`, `D6`, `D7`, `D8`, `D9`, `D10`, `D19`).
+The chip GPIO is in parentheses and does not match the pad index (e.g., `D8` is GPIO7). Sources: the [Seeed pin table](https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/) and the `XIAO_ESP32S3_Plus` Arduino variant.
 
-Stand the stack so the right edge of the landscape picture is up. The app is a 480×800 phone and turns itself onto the 800×480 glass.
+### Power Subsystem
+- **Battery Red Lead (+):** Connect to SPDT Switch Center Pin
+- **SPDT Switch Outer Pin:** Connect to XIAO `BAT+` pad (underside pad)
+- **Battery Black Lead (-):** Connect to XIAO `BAT-` / `GND` pad (underside pad)
 
-## Touch
+### Adafruit 4224 (eInk Friend) -> XIAO ESP32S3 Plus
+- **VIN** -> `3V3`
+- **GND** -> `GND`
+- **SCK** -> `D8` (GPIO7)
+- **MOSI** -> `D10` (GPIO9). *Note: GPIO9 is a strapping pin; confirm the Friend does not hold it during boot.*
+- **ECS (Display CS)** -> `D0` (GPIO1)
+- **DC (Data/Command)** -> `D1` (GPIO2)
+- **RST (Reset)** -> `D2` (GPIO3). *Note: GPIO3 is a strapping pin; same boot caution as MOSI.*
+- **BUSY** -> `D9` (GPIO8). *Note: This pad is also the hardware MISO pin. Using it as a GPIO input is fine because the panel is not read over SPI.*
+- **MISO & SRCS:** Leave disconnected. The panel is write-only SPI, and the Friend's SD card is unused. The 8MB PSRAM is on the XIAO itself and does not use these pins.
 
-The XPT2046 is the touchscreen. After the overlay below, Raspberry Pi OS presents it as a pointer, and the phone treats a finger the way a phone does: tap, drag, and hold.
+### Adafruit 6049 (I2S Microphone) -> XIAO ESP32S3 Plus
+- **3V3** -> `3V3` (shared with eInk Friend)
+- **GND** -> `GND` (shared with system ground)
+- **DOUT (Data Out)** -> `D7` (GPIO44). *Note: Default UART RX; logs stay on native USB, so mic claims D7.*
+- **BCLK (Bit Clock)** -> `D6` (GPIO43). *Note: Default UART TX; logs stay on native USB, so mic claims D6.*
+- **LRCL / WS (Word Select)** -> `D5` (GPIO6)
+- **SEL:** Tie to `GND` (Left audio channel)
 
-`firmware/demo.sh` writes this line into `/boot/firmware/config.txt` (on an older image that file is `/boot/config.txt`):
+### Same Sky TS43 Thumbwheel Navigation Switch -> XIAO ESP32S3 Plus
+The navigation button provides 3-way tactile control: Up rotation/detent, Down rotation/detent, and Center Push with short-click and long-press (Push-to-Talk).
+- **Common Pin:** Connect to `GND` (all switch inputs configured with `INPUT_PULLUP`)
+- **Up Contact:** Connect to `D4` (GPIO5)
+- **Down Contact:** Connect to `D3` (GPIO4)
+- **Center Push Contact:** Connect to underside / edge pad `D19` (GPIO11)
 
-```
-dtoverlay=ads7846,cs=1,penirq=25,penirq_pull=2,speed=50000,keep_vref_on=1,swapxy=0,pmax=255,xohms=150,xmin=200,xmax=3900,ymin=200,ymax=3900
-```
-
-`ads7846` is the driver the XPT2046 uses. This is the usual wiring for these 5" boards:
-
-| Pi pin | Signal | Role |
+#### Navigation Input Behavior
+| Switch Input | Gesture | Action |
 | :--- | :--- | :--- |
-| 19 (MOSI) | TP_SI | Touch data in |
-| 21 (MISO) | TP_SO | Touch data out |
-| 23 (SCLK) | TP_SCK | Touch clock |
-| 26 (CE1) | TP_CS | Touch chip select |
-| 22 (GPIO 25) | TP_IRQ | Touch interrupt |
-
-If a finger dragged sideways moves the pointer up and down, change `swapxy=0` to `swapxy=1` and reboot. Do not set `display_rotate` or `lcd_rotate`. The app already turns the page, and a second rotation sends taps to the wrong control.
-
-## Picture
-
-`firmware/demo.sh` also appends this to the single existing line in `/boot/firmware/cmdline.txt`:
-
-```
-video=HDMI-A-1:800x480M@60
-```
-
-Reboot. If the image only fills part of the glass, use `video=HDMI-A-1:800x480MR@60` instead.
-
-Guides that set `hdmi_group`, `hdmi_mode`, and `hdmi_cvt` in `config.txt` are for an older Raspberry Pi OS. The current image ignores those lines.
-
-## Using it
-
-A finger is the input. Tap a row, a button, or `[ Yes, create it ]`. Drag to scroll. Hold the talk bar at the bottom, then release. The simulator on a laptop uses the mouse for those same touches.
+| **Up** | Detent Click | Move selection up on launcher; scroll items up in checklist; switch active team in scoreboard; cycle buttons in progress tracker |
+| **Down** | Detent Click | Move selection down on launcher; scroll items down in checklist; switch active team in scoreboard; cycle buttons in progress tracker |
+| **Center Push** | Short Press (< 400ms) | Select/open highlighted app; toggle checkbox `[ ]` <-> `[X]`; increment score (+1); trigger button action; confirm proposal |
+| **Center Push** | Long Press / Hold (>= 500ms) | **Push-to-Talk (PTT):** Hold to record microphone audio / activate Omni agent; release to dispatch turn request |

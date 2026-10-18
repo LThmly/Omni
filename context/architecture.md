@@ -1,99 +1,83 @@
-# Omni Architecture (Hackathon)
+# Omni Architecture (ESP32 & E-Ink)
 
-## Decision
+## Overview
 
-The device runtime runs on a **Raspberry Pi 3 Model B** driving a **5" 800×480 HDMI LCD** with an **XPT2046** touchscreen.
+The standalone device runtime runs on a **Seeed Studio XIAO ESP32S3 Plus** driving an **Adafruit 6382 (4.2" 400×300 Tri-Color Black/White/Red SSD1683 E-Ink display)** via an **Adafruit 4224 eInk Breakout Friend**.
 
-The shell runs as one fullscreen pygame window on Raspberry Pi OS. `firmware/install.sh` opens it at login and keeps it there until you quit. The app is a 480×800 portrait phone. The panel is 800×480, so the kiosk turns that window 90° and the stack stands with its right edge up. A finger on the glass is the input: tap, drag, and hold, the same gestures as a phone.
+User input is driven by a **Same Sky TS43-135255-10-BK-200-SMT-TR 3-way thumbwheel navigation switch** (Up, Down, Center Push with click and hold-to-talk) and an **Adafruit 6049 I2S MEMS microphone**.
 
-A bare-metal image would have to reimplement HDMI timing, the SPI touchscreen, and Wi-Fi before any UI could appear. The product work is the shell, so the shell runs on Raspberry Pi OS.
-
-The model does not generate arbitrary executable code. It outputs structured JSON from [`contract/`](../contract/), selecting pre-built UI modules and filling their state.
+The firmware is a fixed C++ system shell flashed once to the ESP32. At runtime, dynamic applications and state mutations are exchanged as structured JSON documents adhering to [`contract/`](../contract/).
 
 Three runtimes share that contract:
 
 | Runtime | Job | When it runs |
 | :--- | :--- | :--- |
-| **Pi 3 shell** | Fullscreen portrait phone, finger input, local state | On the panel |
-| **Laptop window** | The same pygame phone, upright, at 480×800 | Menu work without the board |
-| **Cloud agent** | Speech-to-text and one `propose`, `mutate`, or `say` | Whenever the user speaks |
-
-The laptop window is that phone, shown upright. On the Pi the same window is turned to fill the glass.
+| **ESP32-S3 E-Ink shell** | Captures audio/input, executes local actions, paints the E-Ink panel | On the physical board |
+| **Laptop / Pygame simulator** | Rapid UI and speech testing at 480×800 or 400×300 | Development and CI |
+| **Cloud agent / Gemini** | Speech-to-text, intent classification, and one structured turn (`propose`, `mutate`, `say`, `navigate`) | Whenever the user speaks |
 
 ---
 
-## Why the model does not generate arbitrary code
+## Why the Model Does Not Generate Arbitrary Code
 
-The Pi can run whatever we install, and letting the model emit live Python or JavaScript would mean latency, missing dependencies, broken layout, and a device that can be talked into running the wrong thing.
+The XIAO ESP32-S3 Plus cannot host a C++ compiler or safely run untrusted interpreted code. A model attempting to emit C++ or JavaScript would risk crashes, layout corruption, and sluggish execution.
 
-The device ships with a module catalog. The model returns which module to show and what data to put in it.
+The firmware ships with a declarative component catalog (`checklist`, `scoreboard`, `progress`, `key_value`, and `composed`). The model outputs structured JSON specifying which components to render and their bound state fields.
 
 ---
 
-## What crosses the network
+## What Crosses the Network
 
-One endpoint: `POST /v1/turn`.
-The body is audio (`wav_base64`) or plain text from the simulator, plus the apps already on the device:
+One structured endpoint: `POST /v1/turn` (or direct Gemini 1.5/2.0 API call):
 
 ```json
 {
   "text": "Add milk to my shopping list.",
+  "wav_base64": "...",
   "registry": [],
   "focused_app_id": null
 }
 ```
 
-The response is one of three operations in [`contract/turn.schema.json`](../contract/turn.schema.json):
+The response is one of four operations defined in [`contract/turn.schema.json`](../contract/turn.schema.json):
 
-- `propose` — a new app. The shell shows `[ Yes, create it ]` / `[ Cancel ]`.
-- `mutate` — actions on an app that already exists (`toggle`, `append`, `inc`, `dec`, `add`).
-- `say` — a line in the agent bar when no app changes.
+1. `propose` — proposes a new app. The shell displays a confirmation card (`[ Yes, create it ]` / `[ Cancel ]`).
+2. `mutate` — actions on an existing app (`set`, `increment`, `toggle`, `append`, `clear`, `remove_checked`).
+3. `say` — text spoken/displayed by the agent without altering app state.
+4. `navigate` — opens a destination (`agent`, `apps`, `settings`, `notes`, `clock`, `calculator`, or `app_id`).
 
-An invalid payload is retried once on the server, then replaced with a fallback `say`. The shell does not crash on a bad model reply.
-
----
-
-## What stays on the device
-
-Touch does not wait on the network:
-
-- Tapping a row toggles it.
-- Tapping `+` or `−` changes a score.
-- Dragging scrolls a list.
-- The registry is the apps on the device, stored in `~/.omni/registry.json` on the laptop and on the Pi.
-
-Voice still goes to the cloud and comes back as the same actions.
+If the network is unavailable or unconfigured, the ESP32 firmware features an **Offline Demo Mode** that cycles through the flagship hackathon scenarios automatically upon PTT release.
 
 ---
 
-## The display
+## What Stays on the Device
 
-The panel is an 800×480 HDMI LCD. Touch is the XPT2046 on the GPIO header. Once Raspberry Pi OS loads the `ads7846` overlay, a finger is a normal pointer and the phone does not carry its own touch driver.
+Thumbwheel input never waits on the network:
 
-The product UI is a portrait phone, 480×800: the arrow mark, the Neuropolitical “omni” wordmark, an agent line, a vertical list of apps, and push-to-talk at the bottom. Targets are large enough for a finger. The kiosk turns that phone onto the landscape glass. The laptop window shows the same phone upright, and the mouse stands in for the finger.
-
----
-
-## Module catalog
-
-| Module | UI | Local touch | Demo line |
-| :--- | :--- | :--- | :--- |
-| `checklist` | Title and rows | Tap a row to toggle. Drag to scroll | *"Add milk to my shopping list."* |
-| `scoreboard` | Two names and scores | Tap `+` / `−` | *"Keep score for ping pong between me and Alex."* |
-| `progress` | Value, goal, bar, quick add | Tap `+8 oz` / `+16 oz` | *"Log 16 ounces toward 64."* |
-| `key_value` | Label / value rows | Tap to focus. Drag to scroll | Spare |
+- Scrolling Up/Down updates the selected item or active app.
+- Center-clicking toggles checkboxes, increments counters, or confirms proposals instantly.
+- The app registry is persisted in the ESP32-S3's Flash memory (via LittleFS or NVS Preferences) and 8MB PSRAM.
+- Voice goes to the cloud and returns the exact same declarative operations.
 
 ---
 
-## Touch
+## The E-Ink Display Constraints
 
-1. A finger tap selects a card, a row, or a button. A drag scrolls. Nothing on screen expects a keyboard.
-2. Push-to-talk is the bar at the bottom of the phone. Hold starts a turn. Release sends it. Until the microphone is connected, release sends a canned line. On a laptop, typed text and Enter send a turn.
-3. On `propose`, a finger on `[ Yes, create it ]` stores the app and opens it. `[ Cancel ]` dismisses the card. Neither tap calls the model again.
+The panel is a 4.2" 400×300 tri-color SSD1683 (Adafruit 6382). Tri-color full refresh cycles take several seconds.
+
+Firmware design mitigations:
+- **Input Coalescing:** Consecutive rapid thumbwheel clicks coalesce so the display only refreshes once motion pauses.
+- **Selective Red Accents:** Red is reserved for active selection highlights, the PTT recording mark, alerts, and confirmation buttons.
+- **State Feedback:** The agent bar displays current state (`IDLE`, `LISTENING`, `THINKING`, `RESPONDING`) with clean typography.
+- **Hardware BUSY Polling:** Non-blocking check of the `BUSY` line (`D9` / GPIO8) ensures SPI transfers never collide.
 
 ---
 
-## Cut line
+## Navigation Button Interaction Model
 
-* **In scope:** Pi 3 Model B phone on Raspberry Pi OS, XPT2046 touch, login autostart, the pygame phone (laptop and panel), cloud turn endpoint, module catalog.
-* **Out of scope:** A bare-metal image, an on-device LLM, custom PCB, arbitrary code generation.
+The Same Sky TS43 thumbwheel switch connects to GND with internal pull-ups:
+- **Up (`D4` / GPIO5):** Navigates up through menu items, lists, or teams.
+- **Down (`D3` / GPIO4):** Navigates down through menu items, lists, or teams.
+- **Center Push (`D19` / GPIO11):**
+  - **Short Click (< 400ms):** Selects highlighted item, toggles checkboxes, increments score, confirms dialog.
+  - **Long Press / Hold (>= 500ms):** **Push-to-Talk (PTT)**. While held, I2S microphone records audio. Upon release, turn request is sent.

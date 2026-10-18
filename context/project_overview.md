@@ -2,15 +2,15 @@
 
 ## 1. Elevator Pitch
 
-**Omni** is a dedicated, voice-and-touchscreen AI hardware companion built around a **Raspberry Pi 3 Model B** and a **5" 800×480 HDMI LCD with an XPT2046 touchscreen**. While devices like the Rabbit R1 focus on conversational answers or brittle web automations, Omni's core differentiator is **On-Demand Generative Apps**: instead of downloading apps from an app store or losing information in a chat log, Omni dynamically synthesizes persistent, bespoke micro-apps tailored to the user's exact needs the moment they ask for something new.
+**Omni** is a dedicated, pocketable, voice-and-thumbwheel AI hardware companion built around a **Seeed Studio XIAO ESP32S3 Plus** and a **4.2" 400×300 Tri-Color (Black/White/Red) E-Ink display**. While devices like the Rabbit R1 focus on conversational answers or brittle web automations, Omni's core differentiator is **On-Demand Generative Apps**: instead of downloading apps from an app store or losing information in a chat log, Omni dynamically synthesizes persistent, bespoke micro-apps tailored to the user's exact needs the moment they ask for something new.
 
 ---
 
 ## 2. Core Value Proposition
 
-- **Beyond Chatbots:** Pure voice assistants are ephemeral. Once you ask a question, the UI disappears. Omni turns recurring intents into structured, interactive tools you can revisit and manipulate with touch.
-- **Zero-Friction App Creation:** Users don't write code or configure templates. Apps emerge from conversation when a capability is missing.
-- **A phone, not a desktop:** A finger on the XPT2046 glass drives a portrait app. Tap, drag, and hold are the whole interaction. The panel is 800×480; the app is 480×800 and turns to fill the glass.
+- **Beyond Chatbots:** Pure voice assistants are ephemeral—once you ask a question, the UI disappears. Omni turns recurring intents into structured, interactive tools you can revisit with a flick of the thumbwheel.
+- **Zero-Friction App Creation:** Users don't write code or configure templates. Apps emerge naturally out of conversation when a capability gap is detected.
+- **Calm, High-Contrast Hardware:** A 4.2" Black/White/Red E-Ink screen paired with a tactile 3-way thumbwheel and push-to-talk microphone delivers a distraction-free, sunlight-readable interface designed for quick, single-handed interactions.
 
 ---
 
@@ -20,63 +20,65 @@
 
 | Input / Output | Role in UX |
 | :--- | :--- |
-| **Touch tap** | Select cards, toggle checkboxes, click confirmation buttons (`[ Yes, create it ]` / `[ Cancel ]`), or tap increment and decrement controls (`+` / `−`). |
-| **Touch drag** | Scroll app lists, long checklists, or metric views. |
-| **Touch and hold the on-screen talk bar** | **Push-to-talk:** hold to record from the USB microphone; release to send the turn. The simulator sends typed text until the microphone path exists. |
-| **Portrait phone (480×800)** | One full-screen app at a time: the mark, a vertical list, and push-to-talk at the bottom. The stack stands on its side so this fills the glass. |
+| **Thumbwheel Up / Down** | Cycle through apps on the launcher, scroll lists, increment/decrement values, or switch between dialog choices (`[ Yes, create it ]` / `[ Cancel ]`). |
+| **Thumbwheel Center Push (Short Press)** | Select highlighted item, toggle checkboxes, trigger button actions, or confirm prompts. |
+| **Thumbwheel Center Push (Long Press / Hold)** | **Push-to-Talk (PTT):** Activates the I2S MEMS microphone from anywhere in the OS to talk to the Omni Agent. |
+| **4.2" Tri-Color E-Ink (B/W/Red)** | Crisp, daylight-readable UI. **Black/White** for primary layout and typography; **Red** reserved for active selection highlights, recording status, alerts, and key accents. |
 
-### The Main Agent View
+### The "Main Agent View" (Home Screen)
 
-The home screen has two zones:
+The home screen splits into two primary zones:
+1. **The Omni Agent Bar / Card:** Shows the agent's current state (Idle, Listening, Thinking, or Responding) along with the latest spoken prompt and agent response.
+2. **The App List / Dock:** A thumbwheel-scrollable list of all micro-apps installed or created for the user.
 
-1. **The Omni agent bar.** Idle, listening, thinking, or responding, plus the latest line from the agent.
-2. **The app list.** The micro-apps Omni has created, in one column, each row large enough to hit with a finger.
+### Flagship User Journey: "App Genesis"
 
-### Flagship User Journey: App Genesis
-
-1. **Natural intent.** From home, the user holds the talk bar and speaks:
+1. **Natural Intent:** From the Main Agent View, the user holds the thumbwheel and speaks:
    > *"Add milk to my shopping list."*
-2. **Gap detection.** Omni parses the intent and finds no shopping list in the local registry.
-3. **Proposal.** The panel shows:
-   > *"You don't have a shopping list yet. Make one?"*
-   with `[ Yes, create it ]` and `[ Cancel ]`.
-4. **Creation.** The user taps **Yes, create it**. Omni stores a `checklist` app whose first item is Milk.
-5. **Persistence.** The shopping list opens. A later *"Add eggs to my shopping list"* appends Eggs to that same app.
+2. **Intent Resolution & Gap Detection:**
+   - Omni parses the user's intent (`action: create_app`, `domain: shopping_list`, `item: "Milk"`).
+   - Omni checks its local registry of installed apps and sees no existing Shopping List app.
+3. **Conversational Proposal:**
+   - Omni displays on the E-Ink screen:
+     > *"You don't have a shopping list yet. Would you like me to make one?"*
+   - Interactive options rendered below: `[ Yes, create it ]` (highlighted in Red) / `[ Cancel ]`.
+4. **Just-in-Time App Generation:**
+   - The user clicks the thumbwheel (or says *"Yes"*).
+   - Omni generates a bespoke **Shopping List** micro-app and pre-populates it with the initial state (`["Milk"]`).
+5. **Immediate Launch & Persistence:**
+   - Omni transitions directly into the newly created **Shopping List** app showing `[ ] Milk`.
+   - Later, when the user says *"Add eggs to my shopping list"*, Omni recognizes that the Shopping List app exists and directly appends `"Eggs"` to that app's state without regenerating it.
 
 ---
 
 ## 4. Proposed Technical Architecture
 
-How the Pi runs the shell, what the model is allowed to emit, and how the simulator stays in lockstep is in [architecture.md](architecture.md).
+Because the **Seeed Studio XIAO ESP32S3 Plus** (with 16MB Flash, 8MB PSRAM and Wi-Fi) cannot recompile C++ firmware on the fly, Omni separates the **System Shell** from **Generative App Definitions**:
 
 ```
-[USB mic / simulator text] ──> [Cloud turn]
-                                  │  1. Speech-to-text
-                                  │  2. Existing app vs missing capability
-                                  │  3. Structured propose / mutate / say
-                                  ▼
-[Raspberry Pi 3 shell] <── JSON ── [App spec + state]
-   ├── Portrait phone (firmware/phone.py, fullscreen via firmware/install.sh)
-   └── Local app registry
+[I2S Mic Audio / Text] ──(Wi-Fi)──> [Cloud / Gemini Agent Pipeline]
+                                         │  1. Speech-to-Text (STT)
+                                         │  2. Intent Router (Existing App vs. Missing Capability)
+                                         │  3. App Generator / State Mutator (Structured Output)
+                                         ▼
+[ESP32-S3 Firmware Shell] <──(JSON)── [App Spec + State Payload]
+   ├── E-Ink Declarative UI Renderer (Adafruit ThinkInk 4.2" 400×300 B/W/Red)
+   ├── Local App Registry & State Store (Flash / NVS + PSRAM)
+   └── Thumbwheel Event Dispatcher (Up / Down / Click / PTT Hold)
 ```
 
-Each generated app is a JSON document:
-
-- **Metadata:** `id`, `module`, `title`
-- **State:** lists and counters (`items`, `sides`, `value` / `goal`)
-- **UI the shell already knows how to paint:** checklist, scoreboard, progress, key/value rows, confirm buttons
-- **Voice:** later utterances route to that app's actions
+Each generated app is a lightweight, structured **JSON App Specification** stored in Flash/PSRAM and rendered by the native C++ E-Ink engine on the ESP32-S3.
 
 ---
 
 ## 5. High-Impact Hackathon Demo Scenarios
 
-1. **Shopping list**
-   - *"Add milk to my shopping list."* proposes a checklist with Milk.
-   - *"Also add coffee and bread."* appends to that app.
-   - Tap a row to check it off.
-2. **Scorekeeper**
-   - *"Keep score for ping pong between me and Alex."* proposes a scoreboard.
-   - Tap `+` / `−`, or say *"Point for Alex"*.
-3. **Water log**
-   - *"Log that I drank 16 ounces of water towards a 64-ounce daily goal."* proposes a progress app with `+8 oz` and `+16 oz`.
+1. **The Shopping List (List + State Persistence)**
+   - *Prompt 1:* *"Add milk to my shopping list."* -> Proposes & generates the **Shopping List** app with `"Milk"`.
+   - *Prompt 2:* *"Also add coffee and bread."* -> Recognizes the existing app and appends items immediately.
+   - *Hardware interaction:* User scrolls with the thumbwheel and clicks to check off `"Milk"`.
+2. **The Scorekeeper / Tracker (Counter Primitives)**
+   - *Prompt:* *"Keep score for ping pong between me and Alex."* -> Proposes & generates a **Ping Pong Scoreboard** app.
+   - *Hardware interaction:* User uses the thumbwheel to switch teams and clicks to increment scores, or speaks *"Point for Alex"*.
+3. **The Habit / Water Logger (Quick Metric App)**
+   - *Prompt:* *"Log that I drank 16 ounces of water towards a 64-ounce daily goal."* -> Generates a **Hydration Tracker** app with a progress bar and quick `+8 oz` / `+16 oz` buttons.
