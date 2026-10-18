@@ -5,7 +5,7 @@ from .runtime import validate_app
 
 def to_composed(app):
     if app.get('module')=='composed':return copy.deepcopy(validate_app(app))
-    result={'id':app['id'],'module':'composed','title':app['title'][:48],'state':{'fields':[]},'components':[],'actions':[]}
+    result={'id':app['id'],'module':'composed','title':app['title'][:16],'state':{'fields':[]},'components':[],'actions':[]}
     state=app['state'];kind=app['module']
     def field(id,type,value,**kw):result['state']['fields'].append(dict(id=id,type=type,value=value,**kw))
     def component(id,type,**kw):result['components'].append(dict(id=id,type=type,**kw))

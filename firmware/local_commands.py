@@ -22,10 +22,17 @@ def theme_command(text,current):
         return 'light' if current=='dark' else 'dark'
     match=re.fullmatch(r'turn (light|dark) mode (on|off)',command)
     if match:return match[1] if match[2]=='on' else ('light' if match[1]=='dark' else 'dark')
-    match=re.fullmatch(r'(?P<prefix>(?:switch|change|set)(?: '+subject+r')? to |'
+    # Vosk has produced 'changed ... lighten mode' and 'switch to dark mine'.
+    # Accept these only inside a complete theme command, never as fuzzy
+    # replacements in arbitrary questions, dictation, or combined requests.
+    match=re.fullmatch(r'(?P<prefix>(?:switch(?:ed)?|chang(?:e|ed)|set)(?: '+subject+r')? to |'
                        r'(?:enable|use|activate|turn on|go to) |set )?'
-                       r'(?P<theme>light|dark)(?P<suffix> mode| theme| color scheme| colour scheme)?',command)
-    if match and (match['prefix'] or match['suffix']):return match['theme']
+                       r'(?P<theme>light|lighten|lite|dark|darken)'
+                       r'(?P<suffix> mode| theme| color scheme| colour scheme| mood| mine| mod)?',command)
+    if match and (match['prefix'] or match['suffix']):
+        corrected=match['theme'] in ('lighten','lite','darken') or match['suffix'] in (' mood',' mine',' mod')
+        if corrected and not match['prefix']:return None
+        return 'light' if match['theme'] in ('light','lighten','lite') else 'dark'
     if command in ('disable dark mode','turn off dark mode'):return 'light'
     if command in ('disable light mode','turn off light mode'):return 'dark'
     return None

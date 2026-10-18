@@ -1,0 +1,129 @@
+{
+  "id": "rock_paper_scissors",
+  "module": "composed",
+  "title": "RPS",
+  "state": {
+    "fields": [
+      {
+        "type": "text",
+        "id": "player",
+        "value": ""
+      },
+      {
+        "type": "text",
+        "id": "opponent",
+        "value": ""
+      },
+      {
+        "type": "text",
+        "id": "result",
+        "value": ""
+      },
+      {
+        "type": "number",
+        "id": "wins",
+        "value": 0,
+        "min": 0,
+        "max": 999999
+      },
+      {
+        "type": "number",
+        "id": "losses",
+        "value": 0,
+        "min": 0,
+        "max": 999999
+      },
+      {
+        "type": "number",
+        "id": "draws",
+        "value": 0,
+        "min": 0,
+        "max": 999999
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "choice_game",
+      "id": "arena",
+      "label": "Rock Paper Scissors",
+      "bind": "result",
+      "player": "player",
+      "opponent": "opponent",
+      "wins": "wins",
+      "losses": "losses",
+      "draws": "draws",
+      "choices": [
+        {
+          "id": "rock",
+          "label": "Rock",
+          "icon": "rock",
+          "beats": [
+            "scissors"
+          ]
+        },
+        {
+          "id": "paper",
+          "label": "Paper",
+          "icon": "paper",
+          "beats": [
+            "rock"
+          ]
+        },
+        {
+          "id": "scissors",
+          "label": "Scissors",
+          "icon": "scissors",
+          "beats": [
+            "paper"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "confirm_button",
+      "id": "reset",
+      "label": "New match",
+      "action": "reset_match"
+    }
+  ],
+  "actions": [
+    {
+      "id": "reset_match",
+      "action": "batch",
+      "steps": [
+        {
+          "action": "set",
+          "target": "player",
+          "value": ""
+        },
+        {
+          "action": "set",
+          "target": "opponent",
+          "value": ""
+        },
+        {
+          "action": "set",
+          "target": "result",
+          "value": ""
+        },
+        {
+          "action": "set",
+          "target": "wins",
+          "value": 0
+        },
+        {
+          "action": "set",
+          "target": "losses",
+          "value": 0
+        },
+        {
+          "action": "set",
+          "target": "draws",
+          "value": 0
+        }
+      ]
+    }
+  ],
+  "icon": "rps-scissors"
+}

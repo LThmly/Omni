@@ -22,3 +22,5 @@ Navigation supports combinations of open/open up, launch, start, load, bring up,
 Notes append to the built-in Notes app and then open it. Calculations support addition, subtraction, multiplication, division, parentheses, negative values, digits, and spoken numbers (including hundreds, thousands, and decimals); the result opens Calculator. Time/date questions and reading notes stay on the agent page. Settings persist across restarts.
 
 Commands are matched as complete requests. Ambiguous names, unknown tasks, questions about how to use a setting, negations, and multi-task instructions fall through to Gemini. The matcher does not infer unsupported hardware controls, timers, reminders, or new generated apps. Dictated note/list content stays data; it is not executed as another command. List operations still enforce the shared app contract and size limits.
+
+Theme matching also handles observed Vosk variants within explicit commands, including “changed the theme to lighten mode” and “switch to dark mine”. These corrections are restricted to complete theme-command syntax; they do not rewrite arbitrary dictation or questions.

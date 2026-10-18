@@ -62,7 +62,7 @@ App actions also have an `id`; operations in `mutate.actions` omit it. This is t
 ## Enforcement and persistence
 
 - All objects reject extra properties. Unsupported widgets/actions, missing references, duplicate IDs, mismatched types, non-finite numbers, reserved app IDs, and unknown update/navigation targets are rejected.
-- Apps are limited to 24 components, 32 fields, 32 actions, and 100 items per list. IDs use lowercase snake_case (32 characters maximum); titles are at most 48 characters. Text fields allow 2,000 characters; item labels allow 120.
+- Apps are limited to 24 components, 32 fields, 32 actions, and 100 items per list. IDs use lowercase snake_case (32 characters maximum); titles are at most 16 characters. Text fields allow 2,000 characters; item labels allow 120.
 - `turn.gemini.json` constrains Gemini's closed object structure, tags, and value types. Vertex rejected this union with every range/size constraint included, so those bounds are checked with the complete schema locally.
 - `turn.strict.json` validates the complete wrapped response; `turn.schema.json` validates the inner turn; `app.schema.json` validates saved generated apps. `runtime.py` additionally checks cross-references, type compatibility, numeric bounds, and registry IDs.
 - Both the cloud client and pygame controller validate before changing apps. A bad response fails visibly; it never falls back to a fake successful app. Mutations are validated and applied on a copy before committing the whole batch.
@@ -74,3 +74,7 @@ App actions also have an `id`; operations in `mutate.actions` omit it. This is t
 `build_schema.py` is the schema source. Regenerate with `python3 contract/build_schema.py`; check generated files with `python3 contract/build_schema.py --check`. `modules/composed.json` lists the catalog. `fixtures/v2/` contains validated app, message, mutation, and navigation examples. Original `fixtures/apps/` and `fixtures/turns/` are legacy compatibility data, not the current Gemini output contract.
 
 Install `cloud/requirements.txt` for validation (`sim/requirements.txt` includes it). Run cloud/contract tests with `python3 -m unittest discover -s cloud -p 'test_*.py'`, and controller/renderer tests with `python3 -m unittest discover -s firmware -p 'test_*.py'`.
+
+See the [generated-app layout and workflow guide](../docs/GENERATED_APPS.md) for real app pages, consistent controls, numeric forms, editable collections with undo, atomic action batches, calculations, and change handlers. Existing v2 apps remain compatible.
+
+Playable choice games use the predefined `choice_game` component and atomic `play_choice` operation. A curated icon catalog, validated dominance rules, independent random opponent, automatic scoring, and a local reveal animation replace fake numeric-move scorecards. See [the RPS reference](fixtures/v2/rock-paper-scissors.json) and the workflow guide for the six typed bindings and supported choices.

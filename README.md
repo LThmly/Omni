@@ -12,6 +12,8 @@
 
 <br/>
 
+For the current simulator architecture, UI behavior, and complete development/deployment workflow, start with the [UI agent handoff](docs/UI_AGENT_HANDOFF.md). Coding agents should also read [AGENTS.md](AGENTS.md).
+
 ![Omni Hardware Device](assets/images/omni_hero.jpg)
 
 <br/>

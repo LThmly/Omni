@@ -28,7 +28,7 @@ curl -s localhost:8787/v1/turn \
 
 `cloud/try_turn.py` calls Vertex express at `aiplatform.googleapis.com` with `contract/turn.gemini.json` as the generation schema (with the full `turn.strict.json` validated locally). This key is bound to the Agent Platform service account, so it cannot call `generativelanguage.googleapis.com`. The reply is one `propose`, `mutate`, `say`, or `navigate` object.
 
-Put `GEMINI_API_KEY` in an untracked `.env` at the repo root. See `.env.example`. The model that produced a valid shopping turn is `gemini-3.8-flash`.
+Put `GEMINI_API_KEY` in an untracked `.env` at the repo root. See `.env.example`. The default app-generation model is `gemini-3.1-pro-preview` (Gemini 3.1 Pro); `GEMINI_MODEL` overrides it. Existing `.env` files must be updated when switching models. Earlier testing used `gemini-3.8-flash`.
 
 ```bash
 python3 cloud/try_turn.py "Add milk to my shopping list."

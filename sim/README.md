@@ -21,10 +21,11 @@ On the Pi, `python3-pygame` from apt also works. The simulator uses `firmware/na
 - Tap the corner Omni mark to go home. Back/Escape returns from an app to the wheel, then home. Ctrl+Shift+Q quits.
 - Defaults: Omni, Settings, Notes, Clock, Calculator. Settings persists theme, reduced motion, text size, simulated wait, clock format.
 - Hold the waveform, speak into the microphone, and release to submit. Vosk displays live partial hypotheses and flushes the final transcript on release. The bars fluctuate while held; afterward the arrows animate during generation and the new app appears selected. Gestures under 350 ms, cancelled gestures, microphone errors, and silence never submit a fake/default request. Escape or a focus change cancels capture.
-- Live speech appears beneath the wordmark as Vosk updates its partial hypotheses; the submitted text remains while waiting. Responses replace it with a centered, progressive word reveal. Both use soft fades, smooth corrections and scrolling to the latest two lines. When the response arrives, all logo arrows ease back to their default lengths over 280 ms; reduced motion resets them immediately.
-- You can still type a request and press Enter, or enter one with the on-screen keyboard. While microphone capture is active, transcription owns the prompt and keyboard edits are ignored.
+- Live speech appears beneath the wordmark as Vosk updates its partial hypotheses; the submitted text remains while waiting. Responses replace it with a centered, progressive word reveal. Both use soft fades and smooth corrections. Speech previews retain three lines; replies target 2–6 words and fit one line. When the response arrives, all logo arrows ease back to their default lengths over 280 ms; reduced motion resets them immediately.
+- You can still type a request with a physical keyboard and press Enter. The main screen has no on-screen keyboard button. While microphone capture is active, transcription owns the prompt and keyboard edits are ignored.
 - Notes supports physical typing and an on-screen keyboard. Clock updates from the computer's local clock. Calculator accepts touch/keyboard arithmetic.
 - Ctrl+D restores the five defaults, clearing generated apps and notes in the active profile.
+- Settings → Delete generated apps asks for confirmation, removes generated apps, and preserves the five defaults, Notes, and preferences.
 
 The simulator stores apps and preferences under `~/.omni/simulator/`; the Pi uses `~/.omni/pi-ui/`. The earlier `~/.omni/registry.json` is preserved. Use `--store /path/to/registry.json` for another profile. Speech recognition runs locally with Vosk. App generation still uses the local demo templates and a configurable 10-second wait by default; no server is required.
 
@@ -58,7 +59,19 @@ sh sim/run.sh --audio-device pipewire
 sh sim/run.sh --model /path/to/unpacked-vosk-model
 ```
 
-The system's default input is used unless overridden. Audio is mono 16-bit PCM at the input's native sample rate. Capture and decoding run on a worker thread; results are applied on the pygame thread. Releasing stops capture, drains the queued audio, and submits Vosk's final text. Multiple finalized segments across pauses are retained. Audio is not saved to disk.
+The system's default input is used unless overridden. Audio is mono 16-bit PCM at the input's native sample rate. Capture and decoding run on a worker thread; results are applied on the pygame thread. Releasing stops capture, drains the queued audio, and submits Vosk's final text. Multiple finalized segments across pauses are retained. Empty provisional results leave the current preview visible, and queued partials continue updating it after release until the final transcript arrives. Speech/request previews show the latest three lines; agent responses are fitted to one line, with a word-aware ellipsis if needed. Audio is not saved to disk.
+
+To try the larger streaming English model locally:
+
+```sh
+.venv/bin/python sim/setup_speech.py --model accurate
+sh sim/run.sh --stop
+sh sim/run.sh --backend gemini --model sim/models/vosk-model-en-us-0.22-lgraph
+```
+
+This downloads the official 128 MB `vosk-model-en-us-0.22-lgraph`. It runs offline and supports live partial results. The [official model table](https://alphacephei.com/vosk/models) reports lower error rates than the default small model on its English test sets; this does not guarantee better recognition for every voice or microphone. The choice is explicit per launch: omitting `--model` still uses the small model.
+
+On the development computer, decoding the official Vosk example's 8.31-second recording in 100 ms chunks took 3.49 seconds with the larger model versus 0.87 seconds with the small model. Peak process memory was approximately 477 MiB versus 218 MiB. These are single-sample development measurements, not Pi benchmarks or representative accuracy tests. Keep the Pi 3 on the small model until the larger model's speed and total system memory usage have been measured there. Return to the default with `sh sim/run.sh --backend gemini` after stopping the simulator.
 
 For the earlier animation-only demonstration, explicitly use `sh sim/run.sh --speech demo`. The Pi retains that mode by default; enable microphone recognition there with `python3 firmware/shell.py --kiosk --speech vosk` after installing the requirements and model on the Pi. `--live` controls the app-generation backend independently of `--speech`.
 
@@ -79,3 +92,7 @@ Complete navigation commands such as “Navigate to the settings page”, “Ple
 Voice theme commands also run locally: “Switch to light mode”, “Enable dark mode”, “Set the theme to light mode”, or “Toggle the theme”. Omni displays its animated acknowledgment before applying and saving the theme. Escape cancels the pending change.
 
 The expanded [local voice command catalog](VOICE_COMMANDS.md) covers navigation aliases, themes, motion, text size, clock format, time/date answers, notes, spoken arithmetic, and actions/list additions in existing generated apps. These bypass the backend and use the same response-before-action flow.
+
+See the [generated-app layout and workflow guide](../docs/GENERATED_APPS.md) for real app pages, consistent controls, numeric forms, editable collections with undo, atomic action batches, calculations, and change handlers. Existing v2 apps remain compatible.
+
+Generated apps share a [1,903-asset offline icon library](../assets/icons/README.md). Gemini selects topic-specific logos and component artwork. Tap an app's icon beside its title to search the full library and change its logo; Auto restores an inferred symbol. The picker supports touch search, physical typing, paging, and both themes. Main-screen voice input is unchanged.

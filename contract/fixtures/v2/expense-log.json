@@ -1,0 +1,178 @@
+{
+  "id": "expense_log",
+  "module": "composed",
+  "title": "Expense Log",
+  "state": {
+    "fields": [
+      {
+        "id": "entry",
+        "type": "text",
+        "value": ""
+      },
+      {
+        "id": "amount",
+        "type": "number",
+        "value": 0,
+        "min": 0,
+        "max": 1000000
+      },
+      {
+        "id": "total",
+        "type": "number",
+        "value": 0,
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "id": "budget",
+        "type": "number",
+        "value": 1000,
+        "min": 0,
+        "max": 1000000000
+      },
+      {
+        "id": "remaining",
+        "type": "number",
+        "value": 1000,
+        "min": -1000000000,
+        "max": 1000000000
+      },
+      {
+        "id": "history",
+        "type": "items",
+        "value": []
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "total_view",
+      "type": "number",
+      "label": "Total spent",
+      "bind": "total",
+      "unit": "$"
+    },
+    {
+      "id": "remaining_view",
+      "type": "number",
+      "label": "Budget remaining",
+      "bind": "remaining",
+      "unit": "$"
+    },
+    {
+      "id": "amount_input",
+      "type": "number_input",
+      "label": "Amount ($)",
+      "bind": "amount",
+      "unit": "$"
+    },
+    {
+      "id": "entry_input",
+      "type": "input",
+      "label": "What was it for?",
+      "bind": "entry"
+    },
+    {
+      "id": "save_button",
+      "type": "button",
+      "label": "Save expense",
+      "action": "save_expense"
+    },
+    {
+      "id": "history_view",
+      "type": "data_table",
+      "label": "Saved expenses",
+      "bind": "history",
+      "on_change": "recalculate"
+    },
+    {
+      "id": "budget_input",
+      "type": "number_input",
+      "label": "Budget ($)",
+      "bind": "budget",
+      "unit": "$",
+      "on_change": "recalculate"
+    },
+    {
+      "id": "recalc_button",
+      "type": "button",
+      "label": "Update budget",
+      "action": "recalculate"
+    }
+  ],
+  "actions": [
+    {
+      "id": "save_expense",
+      "action": "batch",
+      "steps": [
+        {
+          "action": "append_record",
+          "target": "history",
+          "source": "entry",
+          "amount": "amount"
+        },
+        {
+          "action": "set",
+          "target": "amount",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "recalculate",
+      "action": "batch",
+      "steps": [
+        {
+          "action": "sum_records",
+          "target": "total",
+          "source": "history"
+        },
+        {
+          "action": "calculate",
+          "target": "remaining",
+          "operator": "subtract",
+          "left": {
+            "field": "budget"
+          },
+          "right": {
+            "field": "total"
+          }
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "overview",
+      "title": "Overview",
+      "components": [
+        "total_view",
+        "remaining_view"
+      ]
+    },
+    {
+      "id": "add",
+      "title": "Add",
+      "components": [
+        "amount_input",
+        "entry_input",
+        "save_button"
+      ]
+    },
+    {
+      "id": "history",
+      "title": "History",
+      "components": [
+        "history_view"
+      ]
+    },
+    {
+      "id": "setup",
+      "title": "Setup",
+      "components": [
+        "budget_input",
+        "recalc_button"
+      ]
+    }
+  ]
+}
