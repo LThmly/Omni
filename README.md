@@ -131,7 +131,7 @@ The finished Omni is a Raspberry Pi 3 Model B, a 5" touch LCD, an I2S microphone
 ## Check out Omni
 
 <p align="center">
-    <a href="TODO">Demo video</a>
+    <a href="https://www.youtube.com/watch?v=5WE6X77K4MY">Demo video</a>
     &nbsp;·&nbsp;
     <a href="https://devpost.com/software/omni-f362rd">Devpost</a>
 </p>
